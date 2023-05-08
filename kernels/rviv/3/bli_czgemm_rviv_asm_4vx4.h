@@ -148,8 +148,13 @@
 REALNAME:
 	#include "rviv_save_registers.h"
 
+    #if 700 == __riscv_vector_version
+	vsetvli s0, zero, VTYPE, m1
+    slli s0, s0, VLSHIFT
+    #else
 	vsetvli s0, zero, VTYPE, m1, ta, ma
 	csrr s0, vlenb
+    #endif
 	slli s0, s0, 1
 	FZERO(fzero)
 

@@ -276,6 +276,9 @@ arch_t bli_arch_query_id_impl( void )
 		#ifdef BLIS_FAMILY_RV64IV
 		id = BLIS_ARCH_RV64IV;
 		#endif
+		#ifdef BLIS_FAMILY_RV64IV0P7
+		id = BLIS_ARCH_RV64IV0P7;
+		#endif
 
 		// Generic microarchitecture.
 		#ifdef BLIS_FAMILY_GENERIC
@@ -336,6 +339,7 @@ static const char* config_name[ BLIS_NUM_ARCHS ] =
     "rv64i",
     "rv32iv",
     "rv64iv",
+    "rv64iv0p7",
 
     "generic"
 };

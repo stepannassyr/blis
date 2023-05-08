@@ -34,13 +34,36 @@
 
 #include "blis.h"
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 static inline uintptr_t get_vlenb(void)
 {
-	uintptr_t vlenb = 0;
-	__asm__ volatile (
-	   " csrr %0, vlenb"    // vector length in bytes
-	  : "=r" (vlenb)
-	);
+    uintptr_t vlenb = 0;
+    const char* override_vlen = getenv("BLIS_RVIV_OVERRIDE_VLENB");
+    if (NULL != override_vlen)
+    {
+        int64_t vset = atol(override_vlen);
+        __asm__ volatile (
+                " ld t0, %[vset]\n\t"
+                " vsetvli %[vlenb], t0, e8, m1\n\t"
+                : [vlenb] "=r" (vlenb)
+                : [vset] "m" (vset)
+                : "t0"
+                );
+    }
+    else
+    {
+        __asm__ volatile (
+#if 700 == __riscv_vector_version
+           " vsetvli %[vlenb], zero, e8, m1\n\t"
+#else
+           " csrr %[vlenb], vlenb"    // vector length in bytes
+#endif
+          : [vlenb] "=r" (vlenb)
+          :
+          : "t0"
+        );
+    }
 	return vlenb;
 }

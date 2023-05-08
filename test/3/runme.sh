@@ -14,7 +14,7 @@ delay=0.1
 
 # Problem size range for single- and multithreaded execution. Set psr_st and
 # psr_mt on a per-system basis below to override these default values.
-psr_st="100 1000 100"
+psr_st="256 4096 256"
 psr_mt="200 2000 200"
 
 sys="blis"
@@ -29,8 +29,7 @@ if [ ${sys} = "blis" ]; then
 	export GOMP_CPU_AFFINITY="0-3"
 
 	numactl=""
-	threads="jc1ic1jr1_st
-	         jc2ic2jr1_mt"
+	threads="jc1ic1jr1_st"
 	#psr_st="40 1000 40"
 	#psr_mt="40 4000 40"
 

@@ -145,6 +145,9 @@ CNTX_INIT_PROTS( rv32iv )
 #ifdef BLIS_CONFIG_RV64IV
 CNTX_INIT_PROTS( rv64iv )
 #endif
+#ifdef BLIS_CONFIG_RV64IV0P7
+CNTX_INIT_PROTS( rv64iv0p7 )
+#endif
 
 
 // -- Generic --
@@ -274,6 +277,11 @@ CNTX_INIT_PROTS( generic )
 
 #ifdef BLIS_FAMILY_BGQ
 #include "bli_family_bgq.h"
+#endif
+
+// -- RISC-V -- 
+#ifdef BLIS_FAMILY_RV64IV0P7
+#include "bli_family_rv64iv0p7.h"
 #endif
 
 // -- Generic --

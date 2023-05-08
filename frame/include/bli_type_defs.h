@@ -970,6 +970,7 @@ typedef enum
 	BLIS_ARCH_RV64I,
 	BLIS_ARCH_RV32IV,
 	BLIS_ARCH_RV64IV,
+	BLIS_ARCH_RV64IV0P7,
 
 	// Generic architecture/configuration
 	BLIS_ARCH_GENERIC,

@@ -39,7 +39,13 @@
 #define FLOAD flw
 #define FZERO(fr) fcvt.s.w fr, x0
 #define FEQ feq.s
+#if 700 == __riscv_vector_version
+#define VLE vle.v
+#define VSE vse.v
+#define VLSHIFT 2
+#else
 #define VLE vle32.v
 #define VSE vse32.v
+#endif
 
 #include "bli_sdgemm_rviv_asm_4vx4.h"

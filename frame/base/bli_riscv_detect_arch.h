@@ -90,6 +90,8 @@
 /* FORCE_RISCV_VECTOR is a Clang workaround */
 #if __riscv_v || FORCE_RISCV_VECTOR
 #define RISCV_V v
+#elif 700 == __riscv_vector_version
+#define RISCV_V v0p7
 #else
 #define RISCV_V
 #endif
@@ -140,6 +142,8 @@
 /* FORCE_RISCV_VECTOR is a Clang workaround */
 #if __riscv_vector || FORCE_RISCV_VECTOR
 #define RISCV_V v
+#elif 700 == __riscv_vector_version
+#define RISCV_V v0p7
 #else
 #define RISCV_V
 #endif

@@ -241,6 +241,12 @@ void bli_gks_init( void )
 		                                              bli_cntx_init_rv64iv_ind );
 #endif
 
+#ifdef BLIS_CONFIG_RV64IV0P7
+		bli_gks_register_cntx( BLIS_ARCH_RV64IV0P7,   bli_cntx_init_rv64iv0p7,
+		                                              bli_cntx_init_rv64iv0p7_ref,
+		                                              bli_cntx_init_rv64iv0p7_ind );
+#endif
+
 		// -- Generic architectures --------------------------------------------
 
 #ifdef BLIS_CONFIG_GENERIC
