@@ -52,18 +52,18 @@ CPPROCFLAGS    := -DRISCV_SIZE=64
 RISCV_ARCH := rv64imafdcv_zicbom_zicboz_zicbop_zicntr_zicond_zicsr_zifencei_zihintpause_zihpm_zfh_zfhmin_zca_zcd_zba_zbb_zbc_zbs_zkt_zve32f_zve32x_zve64d_zve64f_zve64x_zvfh_zvfhmin_zvkt_sscofpmf_sstc_svinval_svnapot_svpbmt
 RISCV_ABI := lp64d
 
-ifeq (,$(findstring 64,$(RISCV_ARCH)))
-$(error The RISC-V compiler architecture $(RISCV_ARCH) is not compatible with $(THIS_CONFIG))
-else ifeq (,$(findstring 64,$(RISCV_ABI)))
-$(error The RISC-V compiler ABI $(RISCV_ABI) is not compatible with $(THIS_CONFIG))
-endif
+#ifeq (,$(findstring 64,$(RISCV_ARCH)))
+#$(error The RISC-V compiler architecture $(RISCV_ARCH) is not compatible with $(THIS_CONFIG))
+#else ifeq (,$(findstring 64,$(RISCV_ABI)))
+#$(error The RISC-V compiler ABI $(RISCV_ABI) is not compatible with $(THIS_CONFIG))
+#endif
 
 CMISCFLAGS     := -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI)
 CPICFLAGS      := -fPIC
 CWARNFLAGS     := -Wall -Wno-unused-function -Wfatal-errors
 
 # In case the A extension is not available
-LDFLAGS        += -latomic
+#LDFLAGS        += -latomic
 
 ifneq ($(DEBUG_TYPE),off)
 CDBGFLAGS      := -g
