@@ -90,9 +90,9 @@ void bli_cntx_init_x60( cntx_t* cntx )
       BLIS_VA_END
     );
 
-    dim_t mc_f = bli_env_get_var("BLIS_OVERRIDE_MC_FACTOR", 34);
-    dim_t nc_f = bli_env_get_var("BLIS_OVERRIDE_NC_FACTOR", 112);
-    dim_t kc   = bli_env_get_var("BLIS_OVERRIDE_KC", 198);
+    dim_t mc_f = bli_env_get_var("BLIS_OVERRIDE_MC_FACTOR", 28);
+    dim_t nc_f = bli_env_get_var("BLIS_OVERRIDE_NC_FACTOR", 128);
+    dim_t kc   = bli_env_get_var("BLIS_OVERRIDE_KC", 200);
 
     bli_blksz_init_easy( &blkszs[ BLIS_MR ],       -1,      mr_d,      -1,      -1 );
     bli_blksz_init_easy( &blkszs[ BLIS_NR ],       -1,        nr,      -1,      -1 );
