@@ -599,7 +599,7 @@ void bli_dgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
             "vse64.v v28, (t4)\n\t"
 
 
-            "j .bend%=\n\t"
+            "j .dgemm_ukr_end%=\n\t"
         ".betazero%=:\n\t" // TODO: written manually and unoptimized
             
             "vse64.v v1, (t3)\n\t"
@@ -670,7 +670,7 @@ void bli_dgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
             "vse64.v v27, (t3)\n\t"
             "vse64.v v28, (t4)\n\t"
             
-        ".bend%=:"
+        ".dgemm_ukr_end%=:"
 
         : [dummy_c] "+m"(*(double(*)[])c)
         : [kc] "m"(kc), [a] "m"(a), [b] "m"(b), [c] "m"(c),
