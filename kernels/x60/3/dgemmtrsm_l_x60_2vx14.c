@@ -8,6 +8,23 @@
 #include "blis.h"
 
 
+struct ukrinputs_t
+{
+    uint64_t k;     // 0
+    uint64_t kc;    // 8
+    uint64_t kleft; // 16
+    uint64_t rs_c;  // 24
+    uint64_t cs_c;  // 32
+    const void* alpha;    // 40
+    const void* a10;      // 48
+    const void* a11;      // 56
+    const void* b01;      // 64
+    void* b11;      // 72
+    void* c11;      // 80
+    const void* a_next;   // 88
+    const void* b_next;   // 96
+};
+
 void bli_dgemmtrsm_l_x60_2vx14(
        dim_t               m,
        dim_t               n,
@@ -33,6 +50,8 @@ void bli_dgemmtrsm_l_x60_2vx14(
     uint64_t rs_c   = rsc;
     uint64_t cs_c   = csc;
 
+
+
     //printf("rs_c: %llu\n",rs_c);
     //printf("cs_c: %llu\n",cs_c);
 
@@ -49,6 +68,21 @@ void bli_dgemmtrsm_l_x60_2vx14(
     // TODO: vestigial kernels
     GEMMTRSM_UKR_SETUP_CT(d, vlen*2, 14, false);
 
+    volatile struct ukrinputs_t ukrinputs;
+    ukrinputs.k     = k;
+    ukrinputs.kc    = kc;
+    ukrinputs.kleft = kleft;
+    ukrinputs.rs_c  = rs_c;
+    ukrinputs.cs_c  = cs_c;
+    ukrinputs.alpha = alpha;
+    ukrinputs.a10 = a10;
+    ukrinputs.a11 = a11;
+    ukrinputs.b01 = b01;
+    ukrinputs.b11 = b11;
+    ukrinputs.c11 = c11;
+    ukrinputs.a_next = a_next;
+    ukrinputs.b_next = b_next;
+
     __asm__ (
         // For some reason llvm (at least the BSC version) uses t0-t4 despite the
         // clobber to store addresses of "m" operands. The order of 'ld' operations
@@ -57,28 +91,29 @@ void bli_dgemmtrsm_l_x60_2vx14(
         // reliably "ld reg, %[var]" later.
         // TODO: pure ASM instead of inline ASM and handle the calling convention/boilerplate
         
-        "ld s11, %[a11]\n\t"
-        "ld s10, %[c11]\n\t"
+        "add s2, %[inputs], 0\n\t"
+        "ld s11, 56(s2)\n\t" // a11
+        "ld s10, 80(s2)\n\t" // c11
 
-        "ld s4, %[rs_c]\n\t"
+        "ld s4, 24(s2)\n\t" // rs_c
         "add s4, s4, -1\n\t"
         "beq s4, zero, .rscokay%=\n\t"
         "unimp\n\t" // Fail if rs_c != 1
         ".rscokay%=:"
-        "ld s7, %[a_next]\n\t"
-        "ld s8, %[b_next]\n\t"
+        "ld s7, 88(s2)\n\t" // a_next
+        "ld s8, 96(s2)\n\t" // b_next
         "vsetvli s3, zero, e64, m1, ta, ma\n\t"
         "slli s3,s3,3\n\t"
         "slli t6,s3,1\n\t"
 
         // scalars
-        "ld s4, %[alpha]\n\t"
+        "ld s4, 40(s2)\n\t" //alpha
         "fld f1, 0(s4)\n\t"
         
         // B11-tile
-        "ld t4, %[b11]\n\t"
+        "ld t4, 72(s2)\n\t" // b11
         "add s9, t4, 0\n\t"
-        "ld s4, %[cs_c]\n\t"
+        "ld s4, 32(s2)\n\t" // cs_c
         "slli s4, s4, 3\n\t"
 
         // pull up zeroing for potential skip at k=0
@@ -111,14 +146,14 @@ void bli_dgemmtrsm_l_x60_2vx14(
         "vmv.v.i v27,0\n\t"
         "vmv.v.i v28,0\n\t"
         // counters
-        "ld t5, %[k]\n\t"
+        "ld t5, 0(s2)\n\t" // k
         "beq t5, zero, .k1done%=\n\t" // skip the gemm
-        "ld t5, %[kc]\n\t"
-        "ld s5, %[kleft]\n\t"
+        "ld t5, 8(s2)\n\t" // kc
+        "ld s5, 16(s2)\n\t" //kleft
         // pointers
-        "ld t2, %[b01]\n\t"
+        "ld t2, 64(s2)\n\t" // b01
         "add t3, t2, 0\n\t"
-        "ld t0, %[a10]\n\t"
+        "ld t0, 48(s2)\n\t" // a10
         "add t1, t0, s3\n\t"
 
 
@@ -919,17 +954,10 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "j .trsmv2%=\n\t"
         ".trsmv2end%=:\n\t"
 
-        : [dummy_c] "+m"(*(double(*)[])c11)
-        : [a10] "m" (a10),
-          [b01] "m" (b01),
-          [a11] "m" (a11),
-          [b11] "m" (b11),
-          [c11] "m" (c11),
-          [kc] "m" (kc), [kleft] "m" (kleft), [k] "m" (k),
-          [rs_c] "m" (rs_c), [cs_c] "m" (cs_c),
-          [alpha] "m" (alpha),
-          [a_next] "m" (a_next), [b_next] "m" (b_next)
-        : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",
+        : [dummy_c] "+m"(*(double(*)[])c11), [dummy_b] "+m"(*(double(*)[])b11)
+        : [inputs] "r" (&ukrinputs)
+        : "t0", "t1", "t2", "t3", "t4", "t5", "t6",
+        "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",
         "f0","f1",
         "f2","f3","f4","f5","f6","f7","f8","f9",
         "f10","f11","f12","f13","f14","f15","f16","f17",
