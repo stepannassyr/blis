@@ -73,6 +73,9 @@ void bli_cntx_init_x60( cntx_t* cntx )
       BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_x60_2vx14_2u,
       // BLIS_GEMM_UKR, BLIS_SCOMPLEX, bli_cgemm_x60_2vx14_2u,
       // BLIS_GEMM_UKR, BLIS_DCOMPLEX, bli_zgemm_x60_2vx14_2u,
+
+      BLIS_GEMMTRSM_L_UKR, BLIS_DOUBLE,   bli_dgemmtrsm_l_x60_2vx14,
+      BLIS_GEMMTRSM_U_UKR, BLIS_DOUBLE,   bli_dgemmtrsm_u_x60_2vx14,
       BLIS_VA_END
     );
 
@@ -86,6 +89,9 @@ void bli_cntx_init_x60( cntx_t* cntx )
       BLIS_GEMM_UKR_ROW_PREF, BLIS_DOUBLE,   FALSE,
       //BLIS_GEMM_UKR_ROW_PREF, BLIS_SCOMPLEX, FALSE,
       //BLIS_GEMM_UKR_ROW_PREF, BLIS_DCOMPLEX, FALSE,
+
+      BLIS_GEMMTRSM_L_UKR_ROW_PREF, BLIS_DOUBLE,   FALSE,
+      BLIS_GEMMTRSM_U_UKR_ROW_PREF, BLIS_DOUBLE,   FALSE,
 
       BLIS_VA_END
     );
