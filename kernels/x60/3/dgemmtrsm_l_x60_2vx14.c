@@ -8,22 +8,23 @@
 #include "blis.h"
 
 
-struct ukrinputs_t
+typedef struct
 {
-    uint64_t k;     // 0
-    uint64_t kc;    // 8
-    uint64_t kleft; // 16
-    uint64_t rs_c;  // 24
-    uint64_t cs_c;  // 32
-    const void* alpha;    // 40
-    const void* a10;      // 48
-    const void* a11;      // 56
-    const void* b01;      // 64
-    void* b11;      // 72
-    void* c11;      // 80
-    const void* a_next;   // 88
-    const void* b_next;   // 96
-};
+    uint64_t k;        // 0
+    uint64_t kc;       // 8
+    uint64_t kleft;    // 16
+    uint64_t rs_c;     // 24
+    uint64_t cs_c;     // 32
+    uint64_t vlen;     // 40
+    const void* alpha; // 48
+    const void* a10;   // 56
+    const void* a11;   // 64
+    const void* b01;   // 72
+    void* b11;         // 80
+    void* c11;         // 88
+    const void* a_next;// 96
+    const void* b_next;// 104
+} ukrinputs_t;
 
 void bli_dgemmtrsm_l_x60_2vx14(
        dim_t               m,
@@ -56,24 +57,32 @@ void bli_dgemmtrsm_l_x60_2vx14(
     //printf("cs_c: %llu\n",cs_c);
 
     //printf("gemmtrsm_l called with m= %llu, n=%llu, k=%llu\n", m, n, k);
-    uint64_t vlen;
-    __asm__("csrr %[vlen], vlenb"
-            : [vlen] "=r" (vlen)
+    // vlen should be half of MR
+    uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
+
+    vlen *= sizeof(double);
+
+    // override vlen
+    __asm__(
+            //"csrr %[vlen],vlenb\n\t"
+            "vsetvli %[vlen], %[vlen], e8, m1\n\t"
+            : [vlen] "+r" (vlen)
             :
             :
-            );
+       );
 
     vlen = vlen/sizeof(double);
 
     // TODO: vestigial kernels
     GEMMTRSM_UKR_SETUP_CT(d, vlen*2, 14, false);
 
-    volatile struct ukrinputs_t ukrinputs;
+    volatile ukrinputs_t ukrinputs;
     ukrinputs.k     = k;
     ukrinputs.kc    = kc;
     ukrinputs.kleft = kleft;
     ukrinputs.rs_c  = rs_c;
     ukrinputs.cs_c  = cs_c;
+    ukrinputs.vlen  = vlen;
     ukrinputs.alpha = alpha;
     ukrinputs.a10 = a10;
     ukrinputs.a11 = a11;
@@ -92,26 +101,27 @@ void bli_dgemmtrsm_l_x60_2vx14(
         // TODO: pure ASM instead of inline ASM and handle the calling convention/boilerplate
         
         "add s2, %[inputs], 0\n\t"
-        "ld s11, 56(s2)\n\t" // a11
-        "ld s10, 80(s2)\n\t" // c11
+        "ld s11, 64(s2)\n\t" // a11
+        "ld s10, 88(s2)\n\t" // c11
 
         "ld s4, 24(s2)\n\t" // rs_c
         "add s4, s4, -1\n\t"
         "beq s4, zero, .rscokay%=\n\t"
         "unimp\n\t" // Fail if rs_c != 1
         ".rscokay%=:"
-        "ld s7, 88(s2)\n\t" // a_next
-        "ld s8, 96(s2)\n\t" // b_next
-        "vsetvli s3, zero, e64, m1, ta, ma\n\t"
+        "ld s7, 96(s2)\n\t" // a_next
+        "ld s8, 104(s2)\n\t" // b_next
+        "ld s3, 40(s2)\n\t"  // vlen
+        "vsetvli s3, s3, e64, m1, ta, ma\n\t"
         "slli s3,s3,3\n\t"
         "slli t6,s3,1\n\t"
 
         // scalars
-        "ld s4, 40(s2)\n\t" //alpha
+        "ld s4, 48(s2)\n\t" //alpha
         "fld f1, 0(s4)\n\t"
         
         // B11-tile
-        "ld t4, 72(s2)\n\t" // b11
+        "ld t4, 80(s2)\n\t" // b11
         "add s9, t4, 0\n\t"
         "ld s4, 32(s2)\n\t" // cs_c
         "slli s4, s4, 3\n\t"
@@ -151,9 +161,9 @@ void bli_dgemmtrsm_l_x60_2vx14(
         "ld t5, 8(s2)\n\t" // kc
         "ld s5, 16(s2)\n\t" //kleft
         // pointers
-        "ld t2, 64(s2)\n\t" // b01
+        "ld t2, 72(s2)\n\t" // b01
         "add t3, t2, 0\n\t"
-        "ld t0, 48(s2)\n\t" // a10
+        "ld t0, 56(s2)\n\t" // a10
         "add t1, t0, s3\n\t"
 
 
@@ -722,7 +732,7 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "vfnmsac.vf v25, f12, v29\n\t"
             "vfnmsac.vf v27, f13, v29\n\t"
 
-            "vsetvli s3, zero, e64, m1, ta, ma\n\t"
+            "vsetvli s3, t6, e64, m1, ta, ma\n\t"
 
             "vle64.v v30, (t1)\n\t"
             "add t1, t1, t3\n\t" // next column (next aii+vlen)
@@ -777,7 +787,7 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "j .trsmv1%=\n\t"
         ".trsmv1end%=:\n\t"
         
-        "vsetvli s3, zero, e64, m1, ta, ma\n\t"
+        "vsetvli s3, t6, e64, m1, ta, ma\n\t"
 
         "vle64.v v30, (t1)\n\t"
         "add t1, t1, t3\n\t" // next column (next aii+vlen)

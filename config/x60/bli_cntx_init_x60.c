@@ -34,6 +34,7 @@
 
 #include "blis.h"
 
+#include <assert.h>
 
 // no idea why it's missing
 //extern void bli_cntx_init_x60_ref(cntx_t* cntx);
@@ -44,13 +45,31 @@ void bli_cntx_init_x60( cntx_t* cntx )
 
 	bli_cntx_init_x60_ref( cntx );
 
-	uint64_t vlen = 0;
-    __asm__(
-            "csrr %[vlen],vlenb\n\t"
-            : [vlen] "=r" (vlen)
-            :
-            :
-       );
+	uint64_t vlen = bli_env_get_var("BLIS_RVV_OVERRIDE_VLEN", 0);
+    assert(0 == (vlen % 2));
+    if (0 == vlen)
+    {
+        // vsetvlmax
+        __asm__(
+                //"csrr %[vlen],vlenb\n\t"
+                "vsetvli %[vlen], zero, e8, m1\n\t"
+                : [vlen] "+r" (vlen)
+                :
+                :
+           );
+
+    }
+    else
+    {
+        // override vlen
+        __asm__(
+                //"csrr %[vlen],vlenb\n\t"
+                "vsetvli %[vlen], %[vlen], e8, m1\n\t"
+                : [vlen] "+r" (vlen)
+                :
+                :
+           );
+    }
 
     const uint64_t mr_d = 2*vlen/sizeof(double);
     const uint64_t nr = 14;
