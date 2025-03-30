@@ -178,6 +178,11 @@ INSERT_GENTCONF
 #include "bli_family_bgq.h"
 #endif
 
+// -- RVV --
+#ifdef BLIS_FAMILY_X60
+#include "bli_family_x60.h"
+#endif
+
 // -- SiFive families --
 
 #ifdef BLIS_FAMILY_SIFIVE_RVV

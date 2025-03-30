@@ -40,8 +40,6 @@ GEMM_UKR_PROT( double, d, gemm_x60_2vx14_2u )
 GEMMTRSM_UKR_PROT(double, d, gemmtrsm_l_x60_2vx14)
 GEMMTRSM_UKR_PROT(double, d, gemmtrsm_u_x60_2vx14)
 
-//GEMMTRSM_UKR_PROT( float,    s, gemm_x60_2vx14 )
-//GEMMTRSM_UKR_PROT( double,   d, gemm_x60_2vx14 )
 
 COPYV_KER_PROT( double, d, copyv_x60)
 AXPYV_KER_PROT( double, d, axpyv_x60)
