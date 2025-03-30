@@ -160,18 +160,18 @@ void bli_dgemmtrsm_u_x60_2vx14(
         "vle64.v v30, (t1)\n\t"
         "fld f6, 32(t2)\n\t"
         "fld f7, 40(t2)\n\t"
-        "add t0, t0, t6\n\t"
         "fld f8, 48(t2)\n\t"
         "fld f9, 56(t2)\n\t"
         "fld f10, 64(t2)\n\t"
         "fld f11, 72(t2)\n\t"
-        "add t1, t1, t6\n\t"
         "fld f12, 80(t2)\n\t"
         "fld f13, 88(t2)\n\t"
         "fld f14, 96(t2)\n\t"
         "fld f15, 104(t2)\n\t"
-        "add t2, t2, 112\n\t"
         "beq t5, zero, .kdone%=\n\t"
+        "add t0, t0, t6\n\t"
+        "add t1, t1, t6\n\t"
+        "add t2, t2, 112\n\t"
         "add t5,t5,-1\n\t"
         "beq t5, zero, .klast%=\n\t"
         "j .kloop%=\n\t"
@@ -641,13 +641,8 @@ void bli_dgemmtrsm_u_x60_2vx14(
                               //  0 0 0 0 | 0 1 2   3
                               //  0 0 0 0 | 0 0 1   2
                               //  0 0 0 0 | 0 0 0 ->1
-        // vector mask for vle and vfnmsac
-                              //  |vl|
-        "li s8, 1\n\t"        //  0001
-        "sll s8, s8, t6\n\t"  // 10000
-        "add s8, s8, -1\n\t"  //  1111
-        "srli s8, s8, 1\n\t"  //  0111
-        "vmv.v.x v0, s8\n\t"
+        
+        "add s8, t6, -1\n\t"
 
         
         // We don't need to slide the vectors, masking
@@ -690,6 +685,8 @@ void bli_dgemmtrsm_u_x60_2vx14(
         "vfmv.f.s f27, v31\n\t"
 
         ".trsmv1%=:\n\t"
+
+            "vsetvli s3, s8, e64, m1, ta, ma\n\t"
             "add t2, s10, 0\n\t"  // fstore: c11
 
             // f28 < 1/a(n-i)(n-i)
@@ -705,12 +702,10 @@ void bli_dgemmtrsm_u_x60_2vx14(
             "add s11, s11, -8\n\t" // previous row
             "fmul.d f1, f28, f15\n\t"
             "fmul.d f2, f28, f16\n\t"
-            "vle64.v v29, (t0)\n\t"
             "fmul.d f3, f28, f17\n\t"
             "fmul.d f4, f28, f18\n\t"
-            "vle64.v v30, (t1), v0.t\n\t"
+            "vle64.v v30, (t1)\n\t"
             "fmul.d f5, f28, f19\n\t"
-            "sub t0, t0, t3\n\t" // previous column
             "sub s11, s11, t3\n\t" // previous column
             "fmul.d f6, f28, f20\n\t"
             "fmul.d f7, f28, f21\n\t"
@@ -774,38 +769,42 @@ void bli_dgemmtrsm_u_x60_2vx14(
 
             "beq t5, t6, .trsmv1end%=\n\t"
 
+            "vfnmsac.vf v2,  f0, v30\n\t"
+            "vfnmsac.vf v4,  f1, v30\n\t"
+            "vfnmsac.vf v6,  f2, v30\n\t"
+            "vfnmsac.vf v8,  f3, v30\n\t"
+            "vfnmsac.vf v10, f4, v30\n\t"
+            "vfnmsac.vf v12, f5, v30\n\t"
+            "vfnmsac.vf v14, f6, v30\n\t"
+            "vfnmsac.vf v16, f7, v30\n\t"
+            "vfnmsac.vf v18, f8, v30\n\t"
+            "vfnmsac.vf v20, f9, v30\n\t"
+            "vfnmsac.vf v22, f10, v30\n\t"
+            "vfnmsac.vf v24, f11, v30\n\t"
+            "vfnmsac.vf v26, f12, v30\n\t"
+            "vfnmsac.vf v28, f13, v30\n\t"
+
+            "vsetvli s3, zero, e64, m1, ta, ma\n\t"
+
+            "vle64.v v29, (t0)\n\t"
+            "sub t0, t0, t3\n\t" // previous column
+
             "vfnmsac.vf v1,  f0, v29\n\t"
-            "vfnmsac.vf v2,  f0, v30, v0.t\n\t"
             "vfnmsac.vf v3,  f1, v29\n\t"
-            "vfnmsac.vf v4,  f1, v30, v0.t\n\t"
             "vfnmsac.vf v5,  f2, v29\n\t"
-            "vfnmsac.vf v6,  f2, v30, v0.t\n\t"
             "vfnmsac.vf v7,  f3, v29\n\t"
-            "vfnmsac.vf v8,  f3, v30, v0.t\n\t"
             "vfnmsac.vf v9,  f4, v29\n\t"
-            "vfnmsac.vf v10, f4, v30, v0.t\n\t"
             "vfnmsac.vf v11, f5, v29\n\t"
-            "vfnmsac.vf v12, f5, v30, v0.t\n\t"
             "vfnmsac.vf v13, f6, v29\n\t"
-            "vfnmsac.vf v14, f6, v30, v0.t\n\t"
             "vfnmsac.vf v15, f7, v29\n\t"
-            "vfnmsac.vf v16, f7, v30, v0.t\n\t"
             "vfnmsac.vf v17, f8, v29\n\t"
-            "vfnmsac.vf v18, f8, v30, v0.t\n\t"
             "vfnmsac.vf v19, f9, v29\n\t"
-            "vfnmsac.vf v20, f9, v30, v0.t\n\t"
             "vfnmsac.vf v21, f10, v29\n\t"
-            "vfnmsac.vf v22, f10, v30, v0.t\n\t"
             "vfnmsac.vf v23, f11, v29\n\t"
-            "vfnmsac.vf v24, f11, v30, v0.t\n\t"
             "vfnmsac.vf v25, f12, v29\n\t"
-            "vfnmsac.vf v26, f12, v30, v0.t\n\t"
             "vfnmsac.vf v27, f13, v29\n\t"
-            "vfnmsac.vf v28, f13, v30, v0.t\n\t"
 
-            "srli s8, s8, 1\n\t"  //  0111
-            "vmv.v.x v0, s8\n\t"
-
+            "add s8, s8, -1\n\t"
 
             "add s9, s9, -1\n\t"
             "vrgather.vx v31, v2, s9\n\t"
@@ -840,6 +839,11 @@ void bli_dgemmtrsm_u_x60_2vx14(
             "j .trsmv1%=\n\t"
         ".trsmv1end%=:\n\t"
 
+        "vsetvli s3, zero, e64, m1, ta, ma\n\t"
+
+        "vle64.v v29, (t0)\n\t"
+        "sub t0, t0, t3\n\t" // previous column
+
         "vfnmsac.vf v1,  f0, v29\n\t"
         "vfnmsac.vf v3,  f1, v29\n\t"
         "vfnmsac.vf v5,  f2, v29\n\t"
@@ -855,12 +859,7 @@ void bli_dgemmtrsm_u_x60_2vx14(
         "vfnmsac.vf v25, f12, v29\n\t"
         "vfnmsac.vf v27, f13, v29\n\t"
 
-                              //  |vl|
-        "li s8, 1\n\t"        //  0001
-        "sll s8, s8, t6\n\t"  // 10000
-        "add s8, s8, -1\n\t"  //  1111
-        "srli s8, s8, 1\n\t"  //  0111
-        "vmv.v.x v0, s8\n\t"
+        "add s8, t6, -1\n\t"
 
         "add s9, t6, -1\n\t"
         "vrgather.vx v31, v1, s9\n\t"
@@ -893,6 +892,8 @@ void bli_dgemmtrsm_u_x60_2vx14(
         "vfmv.f.s f27, v31\n\t"
 
         ".trsmv2%=:\n\t"
+
+            "vsetvli s3, s8, e64, m1, ta, ma\n\t"
             "add t2, s10, 0\n\t"  // fstore: c11
 
             "fld f28, 0(s11)\n\t"
@@ -907,7 +908,7 @@ void bli_dgemmtrsm_u_x60_2vx14(
             "add s11, s11, -8\n\t"
             "fmul.d f1, f28, f15\n\t"
             "fmul.d f2, f28, f16\n\t"
-            "vle64.v v29, (t0), v0.t\n\t"
+            "vle64.v v29, (t0)\n\t"
             "fmul.d f3, f28, f17\n\t"
             "fmul.d f4, f28, f18\n\t"
             "fmul.d f5, f28, f19\n\t"
@@ -971,24 +972,23 @@ void bli_dgemmtrsm_u_x60_2vx14(
             "beq t5, zero, .trsmv2end%=\n\t"
 
 
-            "vfnmsac.vf v1,  f0, v29, v0.t\n\t"
-            "vfnmsac.vf v3,  f1, v29, v0.t\n\t"
-            "vfnmsac.vf v5,  f2, v29, v0.t\n\t"
-            "vfnmsac.vf v7,  f3, v29, v0.t\n\t"
-            "vfnmsac.vf v9,  f4, v29, v0.t\n\t"
-            "vfnmsac.vf v11, f5, v29, v0.t\n\t"
-            "vfnmsac.vf v13, f6, v29, v0.t\n\t"
-            "vfnmsac.vf v15, f7, v29, v0.t\n\t"
-            "vfnmsac.vf v17, f8, v29, v0.t\n\t"
-            "vfnmsac.vf v19, f9, v29, v0.t\n\t"
-            "vfnmsac.vf v21, f10, v29, v0.t\n\t"
-            "vfnmsac.vf v23, f11, v29, v0.t\n\t"
-            "vfnmsac.vf v25, f12, v29, v0.t\n\t"
-            "vfnmsac.vf v27, f13, v29, v0.t\n\t"
+            "vfnmsac.vf v1,  f0, v29\n\t"
+            "vfnmsac.vf v3,  f1, v29\n\t"
+            "vfnmsac.vf v5,  f2, v29\n\t"
+            "vfnmsac.vf v7,  f3, v29\n\t"
+            "vfnmsac.vf v9,  f4, v29\n\t"
+            "vfnmsac.vf v11, f5, v29\n\t"
+            "vfnmsac.vf v13, f6, v29\n\t"
+            "vfnmsac.vf v15, f7, v29\n\t"
+            "vfnmsac.vf v17, f8, v29\n\t"
+            "vfnmsac.vf v19, f9, v29\n\t"
+            "vfnmsac.vf v21, f10, v29\n\t"
+            "vfnmsac.vf v23, f11, v29\n\t"
+            "vfnmsac.vf v25, f12, v29\n\t"
+            "vfnmsac.vf v27, f13, v29\n\t"
 
         
-            "srli s8, s8, 1\n\t"  //  0111
-            "vmv.v.x v0, s8\n\t"
+            "add s8, s8, -1\n\t"
 
             "add s9, s9, -1\n\t"
             "vrgather.vx v31, v1, s9\n\t"

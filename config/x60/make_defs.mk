@@ -49,7 +49,8 @@ CPPROCFLAGS    := -DRISCV_SIZE=64
 
 #RISCV_ARCH     := $(shell $(CC) -DFORCE_RISCV_VECTOR -E build/detect/riscv/bli_riscv_detect_arch.h | grep '^[^\#]')
 #RISCV_ABI      := $(shell $(CC) -DFORCE_RISCV_VECTOR -E build/detect/riscv/bli_riscv_detect_abi.h | grep '^[^\#]')
-RISCV_ARCH := rv64imafdcv_zicbom_zicboz_zicbop_zicntr_zicond_zicsr_zifencei_zihintpause_zihpm_zfh_zfhmin_zca_zcd_zba_zbb_zbc_zbs_zkt_zve32f_zve32x_zve64d_zve64f_zve64x_zvfh_zvfhmin_zvkt_sscofpmf_sstc_svinval_svnapot_svpbmt
+RISCV_ARCH := rv64imafdcv_zicbop
+#RISCV_ARCH := rv64imafdcv_zicbom_zicboz_zicbop_zicntr_zicond_zicsr_zifencei_zihintpause_zihpm_zfh_zfhmin_zca_zcd_zba_zbb_zbc_zbs_zkt_zve32f_zve32x_zve64d_zve64f_zve64x_zvfh_zvfhmin_zvkt_sscofpmf_sstc_svinval_svnapot_svpbmt
 RISCV_ABI := lp64d
 
 #ifeq (,$(findstring 64,$(RISCV_ARCH)))
