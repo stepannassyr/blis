@@ -1,20 +1,8 @@
 #include "blis.h"
 
-#include "ukr1_macros.h"
+#include "ukr1v_inputs.h"
 
-typedef struct
-{
-    uint64_t n;        // 0
-    uint64_t niter;    // 8
-    uint64_t nleft;    // 16
-    uint64_t vlen;     // 24
-    int64_t incx;      // 32
-    int64_t incy;      // 40
-    const void* alpha; // 48
-    const void* x;     // 56
-          void* y;     // 64
-    
-} ukrinputs_t;
+#include "ukr1_macros.h"
 
 void bli_dcopyv_x60(
              conj_t  conjx,
@@ -34,7 +22,7 @@ void bli_dcopyv_x60(
     // override vlen
     __asm__(
             //"csrr %[vlen],vlenb\n\t"
-            "vsetvli %[vlen], %[vlen], e8, m1\n\t"
+            "vsetvli %[vlen], %[vlen], e8, m1, ta, ma\n\t"
             : [vlen] "+r" (vlen)
             :
             :
@@ -42,12 +30,12 @@ void bli_dcopyv_x60(
 
     vlen = vlen/sizeof(double);
 
-    uint64_t unroll = 8*vlen;
+    uint64_t unroll = 4*2*vlen;
     uint64_t niter = n / unroll;
     uint64_t nleft = n % unroll;
 
     volatile ukrinputs_t ukrinputs;
-    ukrinputs.alpha = NULL;
+    ukrinputs.scalar = NULL;
     ukrinputs.incx = incx;
     ukrinputs.incy = incy;
     ukrinputs.x = x;
@@ -55,13 +43,20 @@ void bli_dcopyv_x60(
     ukrinputs.n = n;
     ukrinputs.niter = niter;
     ukrinputs.nleft = nleft;
+
+    #ifdef UKR1_4VM2
+    ukrinputs.vlen = 2*vlen;
+    #else
     ukrinputs.vlen = vlen;
+    #endif
 
     #define SIZESHIFT "3"
+    #define SIZEBITS  "64"
     #define PREPARE_SCALAR
     #define VTRANSFORM(vdst, vsrc) 
     #define VXTOY VFIRST
     #define VLOADY(vreg, addrreg)
+    #define LDIMFIXUP(fixup) fixup
 
     if ((incx == 1) && (incy == 1))
     {
@@ -70,10 +65,10 @@ void bli_dcopyv_x60(
         #define VSTOREY VSTORE
         #define PREPARE_STRIDEX PREPARE_STRIDE_C
         #define PREPARE_STRIDEY PREPARE_STRIDE_C
-        #define VSTRIDE_FROM_1STRIDEX VSTRIDE_FROM_1STRIDE_C
-        #define VSTRIDE_FROM_1STRIDEY VSTRIDE_FROM_1STRIDE_C
+        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_X, sizeshift)
+        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_Y, sizeshift)
 
-        #include "ukr1_8v.h"
+        #include UKRINCLUDE
     }
     else if (incx == 1)
     {
@@ -82,10 +77,10 @@ void bli_dcopyv_x60(
         #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, STRIDE1_Y)
         #define PREPARE_STRIDEX PREPARE_STRIDE_C
         #define PREPARE_STRIDEY PREPARE_STRIDE_G
-        #define VSTRIDE_FROM_1STRIDEX VSTRIDE_FROM_1STRIDE_C
-        #define VSTRIDE_FROM_1STRIDEY VSTRIDE_FROM_1STRIDE_G
+        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_X, sizeshift)
+        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_Y, sizeshift)
 
-        #include "ukr1_8v.h"
+        #include UKRINCLUDE
     }
     else if (incy == 1)
     {
@@ -94,10 +89,10 @@ void bli_dcopyv_x60(
         #define VSTOREY VSTORE
         #define PREPARE_STRIDEX PREPARE_STRIDE_G
         #define PREPARE_STRIDEY PREPARE_STRIDE_C
-        #define VSTRIDE_FROM_1STRIDEX VSTRIDE_FROM_1STRIDE_G
-        #define VSTRIDE_FROM_1STRIDEY VSTRIDE_FROM_1STRIDE_C
+        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_X, sizeshift)
+        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_Y, sizeshift)
 
-        #include "ukr1_8v.h"
+        #include UKRINCLUDE
     }
     else
     {
@@ -106,9 +101,9 @@ void bli_dcopyv_x60(
         #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, STRIDE1_Y)
         #define PREPARE_STRIDEX PREPARE_STRIDE_G
         #define PREPARE_STRIDEY PREPARE_STRIDE_G
-        #define VSTRIDE_FROM_1STRIDEX VSTRIDE_FROM_1STRIDE_G
-        #define VSTRIDE_FROM_1STRIDEY VSTRIDE_FROM_1STRIDE_G
+        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_X, sizeshift)
+        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_Y, sizeshift)
 
-        #include "ukr1_8v.h"
+        #include UKRINCLUDE
     }
 }

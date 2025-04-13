@@ -85,7 +85,8 @@ void bli_cntx_init_x60( cntx_t* cntx )
       BLIS_AXPYV_KER, BLIS_DOUBLE, bli_daxpyv_x60,
 
       // 1m
-      BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60_2vx14,
+      BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60,
+      //BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60_2vx14,
 
       // 3
       // BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_x60_2vx14_2u,
