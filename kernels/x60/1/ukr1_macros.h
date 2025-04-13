@@ -1,29 +1,4 @@
-/* base inputs struct
-typedef struct
-{
-    uint64_t n;        // 0
-    uint64_t niter;    // 8
-    uint64_t nleft;    // 16
-    uint64_t vlen;     // 24
-    int64_t incx;      // 32
-    int64_t incy;      // 40
-    const void* scalar;// 48 (alpha...)
-    const void* x;     // 56
-          void* y;     // 64
-} ukrinputs_t; */
 
-#define I_N      "0"
-#define I_NITER  "8"
-#define I_NLEFT  "16"
-#define I_VLEN   "24"
-#define I_INCX   "32"
-#define I_INCY   "40"
-#define I_SCALAR "48"
-#define I_X      "56"
-#define I_Y      "64"
-
-#define STRIDE1_X "s5"
-#define STRIDE1_Y "s4"
 
 #define VLOAD_STRIDED(vreg, addrreg, stride1reg)\
     "vlse64.v " vreg ", (" addrreg "), " stride1reg "\n\t"
@@ -52,8 +27,19 @@ typedef struct
 #define PREPARE_STRIDE_C(strideregvlen, stridereg1, offset, sizeshift)\
     VSTRIDE_FROM_1STRIDE_C(strideregvlen, stridereg1, sizeshift)
 
+#define PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)\
+    "ld " ldimreg ", " offset "(s2)\n\t"\
+    "slli " ldimreg ", " ldimreg ", " sizeshift "\n\t"
+
+#define PREPARE_LDIM_NON1_G(ldimreg, offset, stridereg1, sizeshift)\
+    "ld " ldimreg ", " offset "(s2)\n\t"\
+    "mul " ldimreg ", " ldimreg ", " stridereg1 "\n\t"
+
 #define VFMA_F0(vdst, vsrc)\
         "vfmacc.vf " vdst ", f0, " vsrc "\n\t"
+
+#define VFMUL_F0(vdst, vsrc)\
+        "vfmul.vf " vdst ", " vsrc ", f0\n\t"
 
 #define VFIRST(v1, v2) v1
 #define VSECOND(v1, v2) v2
@@ -61,3 +47,12 @@ typedef struct
 #define PREPARE_SCALAR_LOADF0\
     "ld t0, " I_SCALAR "(s2)\n\t" \
     "fld f0, (t0)\n\t"
+
+#define TAILPREPARE_WHOLEV
+#define TAILPREPARE_VREST\
+    "vsetvli s3, t4, e" SIZEBITS ", m2, ta, ma\n\t"\
+    PREPARE_LDIMX("t6", I_LDIMX, SIZESHIFT)\
+    PREPARE_LDIMY("t5", I_LDIMY, SIZESHIFT)
+
+#define TAILDECREMENT_WHOLEV "addi t4, t4, -1\n\t"
+#define TAILDECREMENT_VREST "sub t4, t4, s3\n\t"

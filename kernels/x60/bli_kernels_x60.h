@@ -45,4 +45,5 @@ COPYV_KER_PROT( double, d, copyv_x60)
 AXPYV_KER_PROT( double, d, axpyv_x60)
 
 PACKM_KER_PROT( double, d, packm_x60_2vx14 )
+PACKM_KER_PROT( double, d, packm_x60 )
 
