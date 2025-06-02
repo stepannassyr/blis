@@ -255,6 +255,226 @@ void bli_dpackm_x60_2vx14
               "f12", "f13","f14", "f15"
         );
     }
+    else if ( cdim == nr && cdim_bcast == 1 && inca == 1 )
+    {
+        // scalar packing for nr
+        double kappa_d =*(( double* )kappa);
+
+        if ( bli_deq1(kappa_d))
+        {
+            __asm__(
+                "add s2, %[inputs], 0\n\t"
+                "ld t0, 64(s2)\n\t" // t0 = a
+                "add t1, t0, 56\n\t"// t1 = a+7*sizeof(double)
+                "ld t4, 0(s2)\n\t"  // t4 = loop counter
+                "ld t2, 72(s2)\n\t" // t2 = p
+                "ld t5, 40(s2)\n\t" // lda
+                "ld t6, 48(s2)\n\t" // ldp
+                "slli t5, t5, 3\n\t"
+                "slli t6, t6, 3\n\t"
+                "add t3, t2, 56\n\t"
+                "sub t3, t3, t6\n\t" // t3 = p+7*sizeof(double) (since we +ldp t3 in the loop the first time)
+                "beq t4, zero, .packa_14d_end%=\n\t"
+                "fld f0,  0(t0)\n\t"
+                "fld f1,  8(t0)\n\t"
+                "fld f2, 16(t0)\n\t"
+                "fld f3, 24(t0)\n\t"
+                "fld f4, 32(t0)\n\t"
+                "fld f5, 40(t0)\n\t"
+                "fld f6, 48(t0)\n\t"
+                "fld f7, 0(t1)\n\t"
+                "fld f8, 8(t1)\n\t"
+                "fld f9, 16(t1)\n\t"
+                "add t0, t0, t5\n\t"
+                "add t4, t4, -1\n\t"
+                "fld f10, 24(t1)\n\t"
+                "fld f11, 32(t1)\n\t"
+                "fld f12, 40(t1)\n\t"
+                "fld f13, 48(t1)\n\t"
+                "beq t4, zero, .packa_14d_last%=\n\t"
+                ".packa_14d_loop%=:\n\t"
+                    "fsd f0,   0(t2)\n\t"
+                    "fsd f1,   8(t2)\n\t"
+                    "fsd f2,  16(t2)\n\t"
+                    "fsd f3,  24(t2)\n\t"
+                    "fld f0,   0(t0)\n\t"
+                    "add t1, t1, t5\n\t"
+                    "add t3, t3, t6\n\t"
+                    "fsd f4,  32(t2)\n\t"
+                    "fld f1,   8(t0)\n\t"
+                    "fsd f5,  40(t2)\n\t"
+                    "fld f2,  16(t0)\n\t"
+                    "fsd f6,  48(t2)\n\t"
+                    "fld f3,  24(t0)\n\t"
+                    "fsd f7,   0(t3)\n\t"
+                    "fld f4,  32(t0)\n\t"
+                    "fsd f8,   8(t3)\n\t"
+                    "add t4, t4, -1\n\t"
+                    "fld f5,  40(t0)\n\t"
+                    "fsd f9,  16(t3)\n\t"
+                    "fld f6,  48(t0)\n\t"
+                    "fsd f10, 24(t3)\n\t"
+                    "fld f7,   0(t1)\n\t"
+                    "fsd f11, 32(t3)\n\t"
+                    "fld f8,   8(t1)\n\t"
+                    "fsd f12, 40(t3)\n\t"
+                    "fld f9,  16(t1)\n\t"
+                    "fsd f13, 48(t3)\n\t"
+                    "add t0, t0, t5\n\t"
+                    "add t2, t2, t6\n\t"
+                    "fld f10,  24(t1)\n\t"
+                    "fld f11,  32(t1)\n\t"
+                    "fld f12,  40(t1)\n\t"
+                    "fld f13,  48(t1)\n\t"
+                    "bnez t4, .packa_14d_loop%=\n\t"
+                ".packa_14d_last%=:\n\t"
+                    "fsd f0,   0(t2)\n\t"
+                    "fsd f1,   8(t2)\n\t"
+                    "fsd f2,  16(t2)\n\t"
+                    "fsd f3,  24(t2)\n\t"
+                    "add t3, t3, t6\n\t"
+                    "fsd f4,  32(t2)\n\t"
+                    "fsd f5,  40(t2)\n\t"
+                    "fsd f6,  48(t2)\n\t"
+                    "fsd f7,   0(t3)\n\t"
+                    "fsd f8,   8(t3)\n\t"
+                    "fsd f9,  16(t3)\n\t"
+                    "fsd f10, 24(t3)\n\t"
+                    "fsd f11, 32(t3)\n\t"
+                    "fsd f12, 40(t3)\n\t"
+                    "fsd f13, 48(t3)\n\t"
+                ".packa_14d_end%=:\n\t"
+                : [dummy_p] "+m"(*(double(*)[])p)
+                : [inputs] "r" (&ukrinputs)
+                : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "s2", "s3", "s4",
+                  "f0", "f1", "f2", "f3",
+                  "f4", "f5", "f6", "f7",
+                  "f8", "f9", "f10", "f11",
+                  "f12", "f13"
+            );
+        }
+        else
+        {
+            __asm__(
+                "add s2, %[inputs], 0\n\t"
+                "ld t0, 56(s2)\n\t"  // kappa ptr
+                "fld f14, (t0)\n\t"  // kappa
+                "ld t0, 64(s2)\n\t"  // t0 = a
+                "add t1, t0, 56\n\t" // t1 = a+7*sizeof(double)
+                "ld t4, 0(s2)\n\t"   // t4 = loop counter
+                "ld t2, 72(s2)\n\t"  // t2 = p
+                "ld t5, 40(s2)\n\t"  // lda
+                "ld t6, 48(s2)\n\t"  // ldp
+                "slli t5, t5, 3\n\t"
+                "slli t6, t6, 3\n\t"
+                "add t3, t2, 56\n\t"
+                "sub t3, t3, t6\n\t" // t3 = p+7*sizeof(double) (since we +ldp t3 in the loop the first time)
+                "fld f0,  0(t0)\n\t"
+                "fld f1,  8(t0)\n\t"
+                "fld f2, 16(t0)\n\t"
+                "fld f3, 24(t0)\n\t"
+                "fmul.d f0, f0, f14\n\t"
+                "fld f4, 32(t0)\n\t"
+                "fmul.d f1, f1, f14\n\t"
+                "fld f5, 40(t0)\n\t"
+                "fmul.d f2, f2, f14\n\t"
+                "fld f6, 48(t0)\n\t"
+                "fmul.d f3, f3, f14\n\t"
+                "fld f7, 0(t1)\n\t"
+                "fmul.d f4, f4, f14\n\t"
+                "fld f8, 8(t1)\n\t"
+                "fmul.d f5, f5, f14\n\t"
+                "fld f9, 16(t1)\n\t"
+                "fmul.d f6, f6, f14\n\t"
+                "add t0, t0, t5\n\t"
+                "fmul.d f7, f7, f14\n\t"
+                "add t4, t4, -1\n\t"
+                "fmul.d f8, f8, f14\n\t"
+                "fld f10, 24(t1)\n\t"
+                "fmul.d f9, f9, f14\n\t"
+                "fld f11, 32(t1)\n\t"
+                "fmul.d f10, f10, f14\n\t"
+                "fld f12, 40(t1)\n\t"
+                "fmul.d f11, f11, f14\n\t"
+                "fld f13, 48(t1)\n\t"
+                "fmul.d f12, f12, f14\n\t"
+                "fmul.d f13, f13, f14\n\t"
+                "beq t4, zero, .packa_14d_last%=\n\t"
+                ".packa_14d_loop%=:\n\t"
+                    "fsd f0,   0(t2)\n\t"
+                    "fsd f1,   8(t2)\n\t"
+                    "fsd f2,  16(t2)\n\t"
+                    "fsd f3,  24(t2)\n\t"
+                    "fld f0,   0(t0)\n\t"
+                    "add t1, t1, t5\n\t"
+                    "add t3, t3, t6\n\t"
+                    "fsd f4,  32(t2)\n\t"
+                    "fld f1,   8(t0)\n\t"
+                    "fsd f5,  40(t2)\n\t"
+                    "fld f2,  16(t0)\n\t"
+                    "fsd f6,  48(t2)\n\t"
+                    "fld f3,  24(t0)\n\t"
+                    "fmul.d f0, f0, f14\n\t"
+                    "fsd f7,   0(t3)\n\t"
+                    "fld f4,  32(t0)\n\t"
+                    "fmul.d f1, f1, f14\n\t"
+                    "fsd f8,   8(t3)\n\t"
+                    "add t4, t4, -1\n\t"
+                    "fmul.d f2, f2, f14\n\t"
+                    "fld f5,  40(t0)\n\t"
+                    "fsd f9,  16(t3)\n\t"
+                    "fmul.d f3, f3, f14\n\t"
+                    "fld f6,  48(t0)\n\t"
+                    "fsd f10, 24(t3)\n\t"
+                    "fmul.d f4, f4, f14\n\t"
+                    "fld f7,   0(t1)\n\t"
+                    "fsd f11, 32(t3)\n\t"
+                    "fmul.d f5, f5, f14\n\t"
+                    "fld f8,   8(t1)\n\t"
+                    "fsd f12, 40(t3)\n\t"
+                    "fmul.d f6, f6, f14\n\t"
+                    "fld f9,  16(t1)\n\t"
+                    "fsd f13, 48(t3)\n\t"
+                    "add t0, t0, t5\n\t"
+                    "add t2, t2, t6\n\t"
+                    "fmul.d f7, f7, f14\n\t"
+                    "fld f10,  24(t1)\n\t"
+                    "fld f11,  32(t1)\n\t"
+                    "fmul.d f8, f8, f14\n\t"
+                    "fld f12,  40(t1)\n\t"
+                    "fld f13,  48(t1)\n\t"
+                    "fmul.d f9, f9, f14\n\t"
+                    "fmul.d f10, f10, f14\n\t"
+                    "fmul.d f11, f11, f14\n\t"
+                    "fmul.d f12, f12, f14\n\t"
+                    "fmul.d f13, f13, f14\n\t"
+                    "bnez t4, .packa_14d_loop%=\n\t"
+                ".packa_14d_last%=:\n\t"
+                    "fsd f0,   0(t2)\n\t"
+                    "fsd f1,   8(t2)\n\t"
+                    "fsd f2,  16(t2)\n\t"
+                    "fsd f3,  24(t2)\n\t"
+                    "add t3, t3, t6\n\t"
+                    "fsd f4,  32(t2)\n\t"
+                    "fsd f5,  40(t2)\n\t"
+                    "fsd f6,  48(t2)\n\t"
+                    "fsd f7,   0(t2)\n\t"
+                    "fsd f8,   8(t3)\n\t"
+                    "fsd f9,  16(t3)\n\t"
+                    "fsd f10, 24(t3)\n\t"
+                    "fsd f11, 32(t3)\n\t"
+                    "fsd f12, 40(t3)\n\t"
+                    "fsd f13, 48(t3)\n\t"
+                : [dummy_p] "+m"(*(double(*)[])p)
+                : [inputs] "r" (&ukrinputs)
+                : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "s2", "s3", "s4",
+                  "f0", "f1", "f2", "f3",
+                  "f4", "f5", "f6", "f7",
+                  "f8", "f9", "f10", "f11",
+                  "f12", "f13", "f14"
+            );
+        }
+    }
     else if ( cdim == mr && cdim_bcast == 1 )
     {
         if ( bli_deq1( *(( double* )kappa) ) )
@@ -800,225 +1020,6 @@ void bli_dpackm_x60_2vx14
                 );
             }
         } // end of if ( *kappa == 1.0 )
-    }
-    else if ( cdim == nr && cdim_bcast == 1 && inca == 1 )
-    {
-        double kappa_d =*(( double* )kappa);
-
-        if ( bli_deq1(kappa_d))
-        {
-            __asm__(
-                "add s2, %[inputs], 0\n\t"
-                "ld t0, 64(s2)\n\t" // t0 = a
-                "add t1, t0, 56\n\t"// t1 = a+7*sizeof(double)
-                "ld t4, 0(s2)\n\t"  // t4 = loop counter
-                "ld t2, 72(s2)\n\t" // t2 = p
-                "ld t5, 40(s2)\n\t" // lda
-                "ld t6, 48(s2)\n\t" // ldp
-                "slli t5, t5, 3\n\t"
-                "slli t6, t6, 3\n\t"
-                "add t3, t2, 56\n\t"
-                "sub t3, t3, t6\n\t" // t3 = p+7*sizeof(double) (since we +ldp t3 in the loop the first time)
-                "beq t4, zero, .packa_14d_end%=\n\t"
-                "fld f0,  0(t0)\n\t"
-                "fld f1,  8(t0)\n\t"
-                "fld f2, 16(t0)\n\t"
-                "fld f3, 24(t0)\n\t"
-                "fld f4, 32(t0)\n\t"
-                "fld f5, 40(t0)\n\t"
-                "fld f6, 48(t0)\n\t"
-                "fld f7, 0(t1)\n\t"
-                "fld f8, 8(t1)\n\t"
-                "fld f9, 16(t1)\n\t"
-                "add t0, t0, t5\n\t"
-                "add t4, t4, -1\n\t"
-                "fld f10, 24(t1)\n\t"
-                "fld f11, 32(t1)\n\t"
-                "fld f12, 40(t1)\n\t"
-                "fld f13, 48(t1)\n\t"
-                "beq t4, zero, .packa_14d_last%=\n\t"
-                ".packa_14d_loop%=:\n\t"
-                    "fsd f0,   0(t2)\n\t"
-                    "fsd f1,   8(t2)\n\t"
-                    "fsd f2,  16(t2)\n\t"
-                    "fsd f3,  24(t2)\n\t"
-                    "fld f0,   0(t0)\n\t"
-                    "add t1, t1, t5\n\t"
-                    "add t3, t3, t6\n\t"
-                    "fsd f4,  32(t2)\n\t"
-                    "fld f1,   8(t0)\n\t"
-                    "fsd f5,  40(t2)\n\t"
-                    "fld f2,  16(t0)\n\t"
-                    "fsd f6,  48(t2)\n\t"
-                    "fld f3,  24(t0)\n\t"
-                    "fsd f7,   0(t3)\n\t"
-                    "fld f4,  32(t0)\n\t"
-                    "fsd f8,   8(t3)\n\t"
-                    "add t4, t4, -1\n\t"
-                    "fld f5,  40(t0)\n\t"
-                    "fsd f9,  16(t3)\n\t"
-                    "fld f6,  48(t0)\n\t"
-                    "fsd f10, 24(t3)\n\t"
-                    "fld f7,   0(t1)\n\t"
-                    "fsd f11, 32(t3)\n\t"
-                    "fld f8,   8(t1)\n\t"
-                    "fsd f12, 40(t3)\n\t"
-                    "fld f9,  16(t1)\n\t"
-                    "fsd f13, 48(t3)\n\t"
-                    "add t0, t0, t5\n\t"
-                    "add t2, t2, t6\n\t"
-                    "fld f10,  24(t1)\n\t"
-                    "fld f11,  32(t1)\n\t"
-                    "fld f12,  40(t1)\n\t"
-                    "fld f13,  48(t1)\n\t"
-                    "bnez t4, .packa_14d_loop%=\n\t"
-                ".packa_14d_last%=:\n\t"
-                    "fsd f0,   0(t2)\n\t"
-                    "fsd f1,   8(t2)\n\t"
-                    "fsd f2,  16(t2)\n\t"
-                    "fsd f3,  24(t2)\n\t"
-                    "add t3, t3, t6\n\t"
-                    "fsd f4,  32(t2)\n\t"
-                    "fsd f5,  40(t2)\n\t"
-                    "fsd f6,  48(t2)\n\t"
-                    "fsd f7,   0(t3)\n\t"
-                    "fsd f8,   8(t3)\n\t"
-                    "fsd f9,  16(t3)\n\t"
-                    "fsd f10, 24(t3)\n\t"
-                    "fsd f11, 32(t3)\n\t"
-                    "fsd f12, 40(t3)\n\t"
-                    "fsd f13, 48(t3)\n\t"
-                ".packa_14d_end%=:\n\t"
-                : [dummy_p] "+m"(*(double(*)[])p)
-                : [inputs] "r" (&ukrinputs)
-                : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "s2", "s3", "s4",
-                  "f0", "f1", "f2", "f3",
-                  "f4", "f5", "f6", "f7",
-                  "f8", "f9", "f10", "f11",
-                  "f12", "f13"
-            );
-        }
-        else
-        {
-            __asm__(
-                "add s2, %[inputs], 0\n\t"
-                "ld t0, 56(s2)\n\t"  // kappa ptr
-                "fld f14, (t0)\n\t"  // kappa
-                "ld t0, 64(s2)\n\t"  // t0 = a
-                "add t1, t0, 56\n\t" // t1 = a+7*sizeof(double)
-                "ld t4, 0(s2)\n\t"   // t4 = loop counter
-                "ld t2, 72(s2)\n\t"  // t2 = p
-                "ld t5, 40(s2)\n\t"  // lda
-                "ld t6, 48(s2)\n\t"  // ldp
-                "slli t5, t5, 3\n\t"
-                "slli t6, t6, 3\n\t"
-                "add t3, t2, 56\n\t"
-                "sub t3, t3, t6\n\t" // t3 = p+7*sizeof(double) (since we +ldp t3 in the loop the first time)
-                "fld f0,  0(t0)\n\t"
-                "fld f1,  8(t0)\n\t"
-                "fld f2, 16(t0)\n\t"
-                "fld f3, 24(t0)\n\t"
-                "fmul.d f0, f0, f14\n\t"
-                "fld f4, 32(t0)\n\t"
-                "fmul.d f1, f1, f14\n\t"
-                "fld f5, 40(t0)\n\t"
-                "fmul.d f2, f2, f14\n\t"
-                "fld f6, 48(t0)\n\t"
-                "fmul.d f3, f3, f14\n\t"
-                "fld f7, 0(t1)\n\t"
-                "fmul.d f4, f4, f14\n\t"
-                "fld f8, 8(t1)\n\t"
-                "fmul.d f5, f5, f14\n\t"
-                "fld f9, 16(t1)\n\t"
-                "fmul.d f6, f6, f14\n\t"
-                "add t0, t0, t5\n\t"
-                "fmul.d f7, f7, f14\n\t"
-                "add t4, t4, -1\n\t"
-                "fmul.d f8, f8, f14\n\t"
-                "fld f10, 24(t1)\n\t"
-                "fmul.d f9, f9, f14\n\t"
-                "fld f11, 32(t1)\n\t"
-                "fmul.d f10, f10, f14\n\t"
-                "fld f12, 40(t1)\n\t"
-                "fmul.d f11, f11, f14\n\t"
-                "fld f13, 48(t1)\n\t"
-                "fmul.d f12, f12, f14\n\t"
-                "fmul.d f13, f13, f14\n\t"
-                "beq t4, zero, .packa_14d_last%=\n\t"
-                ".packa_14d_loop%=:\n\t"
-                    "fsd f0,   0(t2)\n\t"
-                    "fsd f1,   8(t2)\n\t"
-                    "fsd f2,  16(t2)\n\t"
-                    "fsd f3,  24(t2)\n\t"
-                    "fld f0,   0(t0)\n\t"
-                    "add t1, t1, t5\n\t"
-                    "add t3, t3, t6\n\t"
-                    "fsd f4,  32(t2)\n\t"
-                    "fld f1,   8(t0)\n\t"
-                    "fsd f5,  40(t2)\n\t"
-                    "fld f2,  16(t0)\n\t"
-                    "fsd f6,  48(t2)\n\t"
-                    "fld f3,  24(t0)\n\t"
-                    "fmul.d f0, f0, f14\n\t"
-                    "fsd f7,   0(t3)\n\t"
-                    "fld f4,  32(t0)\n\t"
-                    "fmul.d f1, f1, f14\n\t"
-                    "fsd f8,   8(t3)\n\t"
-                    "add t4, t4, -1\n\t"
-                    "fmul.d f2, f2, f14\n\t"
-                    "fld f5,  40(t0)\n\t"
-                    "fsd f9,  16(t3)\n\t"
-                    "fmul.d f3, f3, f14\n\t"
-                    "fld f6,  48(t0)\n\t"
-                    "fsd f10, 24(t3)\n\t"
-                    "fmul.d f4, f4, f14\n\t"
-                    "fld f7,   0(t1)\n\t"
-                    "fsd f11, 32(t3)\n\t"
-                    "fmul.d f5, f5, f14\n\t"
-                    "fld f8,   8(t1)\n\t"
-                    "fsd f12, 40(t3)\n\t"
-                    "fmul.d f6, f6, f14\n\t"
-                    "fld f9,  16(t1)\n\t"
-                    "fsd f13, 48(t3)\n\t"
-                    "add t0, t0, t5\n\t"
-                    "add t2, t2, t6\n\t"
-                    "fmul.d f7, f7, f14\n\t"
-                    "fld f10,  24(t1)\n\t"
-                    "fld f11,  32(t1)\n\t"
-                    "fmul.d f8, f8, f14\n\t"
-                    "fld f12,  40(t1)\n\t"
-                    "fld f13,  48(t1)\n\t"
-                    "fmul.d f9, f9, f14\n\t"
-                    "fmul.d f10, f10, f14\n\t"
-                    "fmul.d f11, f11, f14\n\t"
-                    "fmul.d f12, f12, f14\n\t"
-                    "fmul.d f13, f13, f14\n\t"
-                    "bnez t4, .packa_14d_loop%=\n\t"
-                ".packa_14d_last%=:\n\t"
-                    "fsd f0,   0(t2)\n\t"
-                    "fsd f1,   8(t2)\n\t"
-                    "fsd f2,  16(t2)\n\t"
-                    "fsd f3,  24(t2)\n\t"
-                    "add t3, t3, t6\n\t"
-                    "fsd f4,  32(t2)\n\t"
-                    "fsd f5,  40(t2)\n\t"
-                    "fsd f6,  48(t2)\n\t"
-                    "fsd f7,   0(t2)\n\t"
-                    "fsd f8,   8(t3)\n\t"
-                    "fsd f9,  16(t3)\n\t"
-                    "fsd f10, 24(t3)\n\t"
-                    "fsd f11, 32(t3)\n\t"
-                    "fsd f12, 40(t3)\n\t"
-                    "fsd f13, 48(t3)\n\t"
-                : [dummy_p] "+m"(*(double(*)[])p)
-                : [inputs] "r" (&ukrinputs)
-                : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "s2", "s3", "s4",
-                  "f0", "f1", "f2", "f3",
-                  "f4", "f5", "f6", "f7",
-                  "f8", "f9", "f10", "f11",
-                  "f12", "f13", "f14"
-            );
-        }
     }
 	else
 	{
