@@ -42,46 +42,46 @@ void bli_dpackm_x60
     const int64_t mr    = 2*vlen;
     const int64_t nr    = 14;
 
-    const int64_t n     = n_;
+    int64_t n     = n_;
     const int64_t inca  = inca_;
     const int64_t lda   = lda_;
     const int64_t ldp   = ldp_;
 
 
     // output is y in the generic kernel
+    const void* x = a;
     void* y = p;
+
+    const void* scalarptr = kappa;
+
+    //printf("packing with cdim=%ld, cdim_bcast=%ld, n=%ld, inca=%ld, lda=%ld, ldp=%ld\n",
+    //        cdim, cdim_bcast, n, inca, lda, ldp);
+
+    #define MAKEUNROLL MAKEUNROLL_I
 
     #define SIZESHIFT "3"
     #define SIZEBITS  "64"
-    //#define PREPARE_SCALAR PREPARE_SCALAR_LOADF0
-    //#define VTRANSFORM VFMA_F0
-    #define VLOADY(vreg, addrreg)
+    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0
+    #define VTRANSFORM VFMA_F0
     #define VXTOY VFIRST
+    #define VLOADY(vreg, addrreg)
     #define LDIMFIXUP(fixup)
+
+    #define PREPARE_LDIMX(strideregvlen, ldimreg, sizeshift) PREPARE_LDIM_NON1(strideregvlen, ldimreg, sizeshift)
+    #define PREPARE_LDIMY(strideregvlen, ldimreg, sizeshift) PREPARE_LDIM_NON1(strideregvlen, ldimreg, sizeshift)
 
     if ( cdim == mr && cdim_bcast == 1 )
     {
-        uint64_t unroll = 4;
-        uint64_t niter = n/unroll;
-        uint64_t nleft = n % unroll;
 
-        volatile ukrinputs_t ukrinputs;
-        ukrinputs.n = n;
-        ukrinputs.niter = niter;
-        ukrinputs.nleft = nleft;
-        ukrinputs.inca = inca;
-        ukrinputs.incp = 1;
-        ukrinputs.lda = lda;
-        ukrinputs.ldp = ldp;
-        ukrinputs.kappa = kappa;
-        ukrinputs.a = a;
-        ukrinputs.p = p;
+        const void* scalarptr = kappa;
+        uint64_t xstride1 = inca;
+        uint64_t ystride1 = 1;
 
-        #ifdef UKR1_4VM2
-        ukrinputs.vlen = 2*vlen;
-        #else
-        ukrinputs.vlen = vlen;
-        #endif
+        uint64_t ldimx = lda;
+        uint64_t ldimy = ldp;
+
+        #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
+
 
         if ( bli_deq1( *(( double* )kappa) ) )
         {
@@ -95,8 +95,7 @@ void bli_dpackm_x60
                 #define VSTOREY VSTORE
                 #define PREPARE_STRIDEX PREPARE_STRIDE_C
                 #define PREPARE_STRIDEY PREPARE_STRIDE_C
-                #define PREPARE_LDIMX(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
-                #define PREPARE_LDIMY(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
+                #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
 
                 #include UKRINCLUDE
 
@@ -104,12 +103,11 @@ void bli_dpackm_x60
             else  // gather load/ cont. store.
             {
                 #define LABELPREFIX "pck_mr_iag_kappa1"
-                #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, STRIDE1_X)
+                #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
                 #define VSTOREY VSTORE
                 #define PREPARE_STRIDEX PREPARE_STRIDE_G
                 #define PREPARE_STRIDEY PREPARE_STRIDE_C
-                #define PREPARE_LDIMX(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
-                #define PREPARE_LDIMY(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
+                #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_G
 
                 #include UKRINCLUDE
 
@@ -128,24 +126,61 @@ void bli_dpackm_x60
                 #define VSTOREY VSTORE
                 #define PREPARE_STRIDEX PREPARE_STRIDE_C
                 #define PREPARE_STRIDEY PREPARE_STRIDE_C
-                #define PREPARE_LDIMX(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
-                #define PREPARE_LDIMY(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
+                #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
 
                 #include UKRINCLUDE
             }
             else  // gather load/ cont. store.
             {
                 #define LABELPREFIX "pck_mr_iag_kappag"
-                #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, STRIDE1_X)
+                #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
                 #define VSTOREY VSTORE
                 #define PREPARE_STRIDEX PREPARE_STRIDE_G
                 #define PREPARE_STRIDEY PREPARE_STRIDE_C
-                #define PREPARE_LDIMX(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
-                #define PREPARE_LDIMY(ldimreg, offset, sizeshift) PREPARE_LDIM_NON1(ldimreg, offset, sizeshift)
+                #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_G
 
                 #include UKRINCLUDE
             }
         } // end of if ( *kappa == 1.0 )
+    }
+    if ( cdim == nr && cdim_bcast == 1 && lda == 1 && ldp == nr)
+    {
+        uint64_t xstride1 = 1; // lda
+        uint64_t ystride1 = ldp; // == nr
+
+        uint64_t ldimx = inca;
+        uint64_t ldimy = 1; // incp always 1
+
+        #define VLOADX VLOAD
+        #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, "%[ystride1]")
+        #define PREPARE_STRIDEX PREPARE_STRIDE_C
+        #define PREPARE_STRIDEY PREPARE_STRIDE_G
+        #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
+        #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_G
+        #define MAKEUNROLL MAKEUNROLL_FROMG
+        #define PREPARE_LDIMX(strideregvlen, ldimreg, sizeshift) PREPARE_LDIM_NON1(strideregvlen, ldimreg, sizeshift)
+        #define PREPARE_LDIMY(strideregvlen, ldimreg, sizeshift) PREPARE_LDIM_NON1(strideregvlen, ldimreg, sizeshift)
+        #define LDIMFIXUP(fixup) fixup
+
+        if (bli_deq1(*(( double* )kappa)))
+        {
+            #define LABELPREFIX "pck_nr_iag_kappa1"
+            #define PREPARE_SCALAR
+            #define VTRANSFORM(vdst, vsrc) 
+
+            #include "ukr1m_14v.h"
+
+        }
+        else
+        {
+            #define LABELPREFIX "pck_nr_iag_kappag"
+            #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0
+            #define VTRANSFORM VFMUL_F0
+
+            #include "ukr1m_14v.h"
+        }
+
+
     }
 	else
 	{

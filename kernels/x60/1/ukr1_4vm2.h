@@ -1,81 +1,95 @@
+uint64_t yptr2;
+uint64_t xvstride;
+uint64_t yvstride;
+uint64_t counter;
+uint64_t unroll;
 __asm__ (
-    "add s2, %[inputs], 0\n\t"
     PREPARE_SCALAR
-    "ld s3, " I_VLEN "(s2)\n\t" // vlen
-    "vsetvli s3, s3, e" SIZEBITS ", m2, ta, ma\n\t"
-    PREPARE_STRIDEX("t6", "s5", I_INCX, SIZESHIFT)
-    PREPARE_STRIDEY("t5", "s4", I_INCY, SIZESHIFT)
+    // LMUL=2
+    "slli %[vlen], %[vlen], 1\n\t"
+    "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m2, ta, ma\n\t"
+    
+    // unroll = 4*vlen (vlen was *2 for LMUL=2 before)
+    MAKEUNROLL("%[vlen]","2", SHIFT)
+    "divu %[counter], %[n], %[unroll]\n\t"
+    // put remainder back into n
+    "remu %[n], %[n], %[unroll]\n\t"
+
+    PREPARE_STRIDEX("%[xvstride]", "%[xstride1]", SIZESHIFT)
+    PREPARE_STRIDEY("%[yvstride]", "%[ystride1]", SIZESHIFT)
+
+    "add %[yptr2], %[yptr], 0\n\t"
+
+    PREPARE_LDIMX("%[xvstride]", "%[ldimx]", SIZESHIFT)
+    PREPARE_LDIMY("%[yvstride]", "%[ldimy]", SIZESHIFT)
 
 
-    "ld t0, " I_X "(s2)\n\t" // x
-    "ld t2, " I_Y "(s2)\n\t" // y
-    "add t3, t2, 0\n\t"
-
-    PREPARE_LDIMX("t6", I_LDIMX, SIZESHIFT)
-    PREPARE_LDIMY("t5", I_LDIMY, SIZESHIFT)
-
-    "ld t4, " I_NITER "(s2)\n\t" //niter
-    "beq t4, zero, ." LABELPREFIX "4vm2end%=\n\t"
+    "beq %[counter], zero, ." LABELPREFIX "4vm2end%=\n\t"
     "." LABELPREFIX "4vm2loop%=:\n\t"
 
-        VLOADX("v0","t0")
-        VLOADY(VXTOY("v0","v2"),"t2")
+        VLOADX("v0","%[xptr]")
+        VLOADY(VXTOY("v0","v2"),"%[yptr]")
         VTRANSFORM(VXTOY("v0", "v2"), "v0")
-        "add t0, t0, t6\n\t"
-        "add t2, t2, t5\n\t"
+        "add %[xptr], %[xptr], %[xvstride]\n\t"
+        "add %[yptr], %[yptr], %[yvstride]\n\t"
 
-        VLOADX("v4","t0")
-        VLOADY(VXTOY("v4","v6"),"t2")
+        VLOADX("v4","%[xptr]")
+        VLOADY(VXTOY("v4","v6"),"%[yptr]")
         VTRANSFORM(VXTOY("v4", "v6"), "v4")
-        "add t0, t0, t6\n\t"
-        "add t2, t2, t5\n\t"
+        "add %[xptr], %[xptr], %[xvstride]\n\t"
+        "add %[yptr], %[yptr], %[yvstride]\n\t"
 
-        VLOADX("v8","t0")
-        VLOADY(VXTOY("v8","v10"),"t2")
+        VLOADX("v8","%[xptr]")
+        VLOADY(VXTOY("v8","v10"),"%[yptr]")
         VTRANSFORM(VXTOY("v8", "v10"), "v8")
-        "add t0, t0, t6\n\t"
-        "add t2, t2, t5\n\t"
+        "add %[xptr], %[xptr], %[xvstride]\n\t"
+        "add %[yptr], %[yptr], %[yvstride]\n\t"
 
-        VLOADX("v12","t0")
-        VLOADY(VXTOY("v12","v14"),"t2")
+        VLOADX("v12","%[xptr]")
+        VLOADY(VXTOY("v12","v14"),"%[yptr]")
         VTRANSFORM(VXTOY("v12", "v14"), "v12")
-        "add t0, t0, t6\n\t"
-        "add t2, t2, t5\n\t"
+        "add %[xptr], %[xptr], %[xvstride]\n\t"
+        "add %[yptr], %[yptr], %[yvstride]\n\t"
 
-        VSTOREY(VXTOY("v0","v2"),"t3")
-        "add t3, t3, t5\n\t"
-        VSTOREY(VXTOY("v4","v6"),"t3")
-        "add t3, t3, t5\n\t"
-        VSTOREY(VXTOY("v8","v10"),"t3")
-        "add t3, t3, t5\n\t"
-        VSTOREY(VXTOY("v12","v14"),"t3")
-        "add t3, t3, t5\n\t"
+        VSTOREY(VXTOY("v0","v2"),"%[yptr2]")
+        "add %[yptr2], %[yptr2], %[yvstride]\n\t"
+        VSTOREY(VXTOY("v4","v6"),"%[yptr2]")
+        "add %[yptr2], %[yptr2], %[yvstride]\n\t"
+        VSTOREY(VXTOY("v8","v10"),"%[yptr2]")
+        "add %[yptr2], %[yptr2], %[yvstride]\n\t"
+        VSTOREY(VXTOY("v12","v14"),"%[yptr2]")
+        "add %[yptr2], %[yptr2], %[yvstride]\n\t"
 
-        "add t4, t4, -1\n\t"
-        "bnez t4, ." LABELPREFIX "4vm2loop%=\n\t"
+        "add %[counter], %[counter], -1\n\t"
+        "bnez %[counter], ." LABELPREFIX "4vm2loop%=\n\t"
 
     "." LABELPREFIX "4vm2end%=:\n\t"
-    "ld t4, " I_NLEFT "(s2)\n\t" // nleft
-    "beq t4, zero, ." LABELPREFIX "end%=\n\t"
+    "add %[counter], %[n], 0\n\t" // nleft
+    "beq %[counter], zero, ." LABELPREFIX "end%=\n\t"
     "." LABELPREFIX "loop%=:\n\t"
-        //"vsetvli s3, t4, e" SIZEBITS ", m2, ta, ma\n\t"
-        //PREPARE_LDIMX("t6", I_LDIMX, SIZESHIFT)
-        //PREPARE_LDIMY("t5", I_LDIMY, SIZESHIFT)
+
         TAILPREPARE
 
-        VLOADX("v0","t0")
-        VLOADY(VXTOY("v0","v2"),"t2")
-        "add t0, t0, t6\n\t"
+        VLOADX("v0","%[xptr]")
+        VLOADY(VXTOY("v0","v2"),"%[yptr]")
+        "add %[xptr], %[xptr], %[xvstride]\n\t"
         VTRANSFORM(VXTOY("v0", "v2"), "v0")
-        VSTOREY(VXTOY("v0","v2"),"t2")
-        "add t2, t2, t5\n\t"
-        //"sub t4, t4, s3\n\t"
+        VSTOREY(VXTOY("v0","v2"),"%[yptr]")
+        "add %[yptr], %[yptr], %[yvstride]\n\t"
+
         TAILDECREMENT
-        "bnez t4, ." LABELPREFIX "loop%=\n\t"
+
+        "bnez %[counter], ." LABELPREFIX "loop%=\n\t"
     "." LABELPREFIX "end%=:\n\t"
-    : [dummy_y] "+m"(*(double(*)[])y)
-    : [inputs] "r" (&ukrinputs)
-    : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "s2", "s3", "s4", "s5",
+    : [dummy_y] "+m"(*(double(*)[])y),
+      [xptr] "+r" (x), [yptr] "+r" (y), [yptr2] "=r" (yptr2),
+      [xvstride] "=r" (xvstride), [yvstride] "=r" (yvstride),
+      [counter] "=r" (counter), [n] "+r" (n),
+      [vlen] "+r" (vlen), [unroll] "=r" (unroll),
+      [ystride1] "+r" (ystride1), [xstride1] "+r" (xstride1),
+      [ldimx] "+r" (ldimx), [ldimy] "+r" (ldimy)
+    : [scalarptr] "r" (scalarptr)
+    : "f0",
       "v0", "v1", "v2", "v3",
       "v4", "v5", "v6", "v7",
       "v8", "v9", "v10", "v11",

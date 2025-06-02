@@ -30,25 +30,13 @@ void bli_dcopyv_x60(
 
     vlen = vlen/sizeof(double);
 
-    uint64_t unroll = 4*2*vlen;
-    uint64_t niter = n / unroll;
-    uint64_t nleft = n % unroll;
+    const void* scalarptr = NULL;
+    uint64_t xstride1 = incx;
+    uint64_t ystride1 = incy;
+    uint64_t ldimx = 1;
+    uint64_t ldimy = 1;
 
-    volatile ukrinputs_t ukrinputs;
-    ukrinputs.scalar = NULL;
-    ukrinputs.incx = incx;
-    ukrinputs.incy = incy;
-    ukrinputs.x = x;
-    ukrinputs.y = y;
-    ukrinputs.n = n;
-    ukrinputs.niter = niter;
-    ukrinputs.nleft = nleft;
-
-    #ifdef UKR1_4VM2
-    ukrinputs.vlen = 2*vlen;
-    #else
-    ukrinputs.vlen = vlen;
-    #endif
+    #define MAKEUNROLL MAKEUNROLL_FROMG
 
     #define SIZESHIFT "3"
     #define SIZEBITS  "64"
@@ -58,6 +46,10 @@ void bli_dcopyv_x60(
     #define VLOADY(vreg, addrreg)
     #define LDIMFIXUP(fixup) fixup
 
+    #define PREPARE_LDIMX(strideregvlen, ldimreg, sizeshift)
+    #define PREPARE_LDIMY(strideregvlen, ldimreg, sizeshift) 
+
+   
     if ((incx == 1) && (incy == 1))
     {
         #define LABELPREFIX "copy1x1y"
@@ -65,8 +57,8 @@ void bli_dcopyv_x60(
         #define VSTOREY VSTORE
         #define PREPARE_STRIDEX PREPARE_STRIDE_C
         #define PREPARE_STRIDEY PREPARE_STRIDE_C
-        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_X, sizeshift)
-        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_Y, sizeshift)
+        #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
+        #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
 
         #include UKRINCLUDE
     }
@@ -74,35 +66,35 @@ void bli_dcopyv_x60(
     {
         #define LABELPREFIX "copy1xny"
         #define VLOADX VLOAD
-        #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, STRIDE1_Y)
+        #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, "%[ystride1]")
         #define PREPARE_STRIDEX PREPARE_STRIDE_C
         #define PREPARE_STRIDEY PREPARE_STRIDE_G
-        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_X, sizeshift)
-        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_Y, sizeshift)
+        #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
+        #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_G
 
         #include UKRINCLUDE
     }
     else if (incy == 1)
     {
         #define LABELPREFIX "copynx1y"
-        #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, STRIDE1_X)
+        #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
         #define VSTOREY VSTORE
         #define PREPARE_STRIDEX PREPARE_STRIDE_G
         #define PREPARE_STRIDEY PREPARE_STRIDE_C
-        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_X, sizeshift)
-        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_C(ldimreg, STRIDE1_Y, sizeshift)
+        #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_G
+        #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
 
         #include UKRINCLUDE
     }
     else
     {
         #define LABELPREFIX "copynxny"
-        #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, STRIDE1_X)
-        #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, STRIDE1_Y)
+        #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
+        #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, "%[ystride1]")
         #define PREPARE_STRIDEX PREPARE_STRIDE_G
         #define PREPARE_STRIDEY PREPARE_STRIDE_G
-        #define PREPARE_LDIMX(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_X, sizeshift)
-        #define PREPARE_LDIMY(ldimreg, offset, sizeshift) VSTRIDE_FROM_1STRIDE_G(ldimreg, STRIDE1_Y, sizeshift)
+        #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_G
+        #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_G
 
         #include UKRINCLUDE
     }
