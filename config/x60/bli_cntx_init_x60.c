@@ -46,7 +46,7 @@ void bli_cntx_init_x60( cntx_t* cntx )
 	bli_cntx_init_x60_ref( cntx );
 
 	uint64_t vlen = bli_env_get_var("BLIS_RVV_OVERRIDE_VLEN", 0);
-    assert(0 == (vlen % 2));
+    assert(0 == (vlen % 8));
     if (0 == vlen)
     {
         // vsetvlmax
