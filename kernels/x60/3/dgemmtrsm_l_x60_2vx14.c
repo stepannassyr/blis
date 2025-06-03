@@ -8,23 +8,23 @@
 #include "blis.h"
 
 
-typedef struct
-{
-    uint64_t k;        // 0
-    uint64_t kc;       // 8
-    uint64_t kleft;    // 16
-    uint64_t rs_c;     // 24
-    uint64_t cs_c;     // 32
-    uint64_t vlen;     // 40
-    const void* alpha; // 48
-    const void* a10;   // 56
-    const void* a11;   // 64
-    const void* b01;   // 72
-    void* b11;         // 80
-    void* c11;         // 88
-    const void* a_next;// 96
-    const void* b_next;// 104
-} ukrinputs_t;
+//typedef struct
+//{
+//    uint64_t k;        // 0
+//    uint64_t kc;       // 8
+//    uint64_t kleft;    // 16
+//    uint64_t rs_c;     // 24
+//    uint64_t cs_c;     // 32
+//    uint64_t vlen;     // 40
+//    const void* alpha; // 48
+//    const void* a10;   // 56
+//    const void* a11;   // 64
+//    const void* b01;   // 72
+//    void* b11;         // 80
+//    void* c11;         // 88
+//    const void* a_next;// 96
+//    const void* b_next;// 104
+//} ukrinputs_t;
 
 void bli_dgemmtrsm_l_x60_2vx14(
        dim_t               m,
@@ -65,7 +65,7 @@ void bli_dgemmtrsm_l_x60_2vx14(
     // override vlen
     __asm__(
             //"csrr %[vlen],vlenb\n\t"
-            "vsetvli %[vlen], %[vlen], e8, m1\n\t"
+            "vsetvli %[vlen], %[vlen], e8, m1, ta, ma\n\t"
             : [vlen] "+r" (vlen)
             :
             :
@@ -76,55 +76,68 @@ void bli_dgemmtrsm_l_x60_2vx14(
     // TODO: vestigial kernels
     GEMMTRSM_UKR_SETUP_CT(d, vlen*2, 14, false);
 
-    volatile ukrinputs_t ukrinputs;
-    ukrinputs.k     = k;
-    ukrinputs.kc    = kc;
-    ukrinputs.kleft = kleft;
-    ukrinputs.rs_c  = rs_c;
-    ukrinputs.cs_c  = cs_c;
-    ukrinputs.vlen  = vlen;
-    ukrinputs.alpha = alpha;
-    ukrinputs.a10 = a10;
-    ukrinputs.a11 = a11;
-    ukrinputs.b01 = b01;
-    ukrinputs.b11 = b11;
-    ukrinputs.c11 = c11;
-    ukrinputs.a_next = a_next;
-    ukrinputs.b_next = b_next;
+    //volatile ukrinputs_t ukrinputs;
+    //ukrinputs.k     = k;
+    //ukrinputs.kc    = kc;
+    //ukrinputs.kleft = kleft;
+    //ukrinputs.rs_c  = rs_c;
+    //ukrinputs.cs_c  = cs_c;
+    //ukrinputs.vlen  = vlen;
+    //ukrinputs.alpha = alpha;
+    //ukrinputs.a10 = a10;
+    //ukrinputs.a11 = a11;
+    //ukrinputs.b01 = b01;
+    //ukrinputs.b11 = b11;
+    //ukrinputs.c11 = c11;
+    //ukrinputs.a_next = a_next;
+    //ukrinputs.b_next = b_next;
 
+    uint64_t anext_cstride = (uint64_t)a_next;
+    uint64_t bnext_vdown = (uint64_t)b_next;
+
+    // init ptr11 to a10
+    // it will be used as a10, b11 and a11
+    void* ptr11 = a10;
+    void* ptr12 = NULL;
+
+    // init ptr21 to b01
+    // it will be used as b01 and c11
+    void* ptr21 = b01;
+    void* ptr22 = NULL;
+
+    void* alpha_pref_ptr = alpha;
+    uint64_t rs_c_pref_dist = rs_c;
+
+    uint64_t counter = 0;
+
+    uint64_t unroll_vlenxn = unroll;
     __asm__ (
-        // For some reason llvm (at least the BSC version) uses t0-t4 despite the
-        // clobber to store addresses of "m" operands. The order of 'ld' operations
-        // has been manually adjusted to work despite that
-        // This also means that we need to occupy more gprs since we can't
-        // reliably "ld reg, %[var]" later.
-        // TODO: pure ASM instead of inline ASM and handle the calling convention/boilerplate
         
-        "add s2, %[inputs], 0\n\t"
-        "ld s11, 64(s2)\n\t" // a11
-        "ld s10, 88(s2)\n\t" // c11
+        //"ld %[a11], 64(s2)\n\t" // a11
+        //"ld %[c11], 88(s2)\n\t" // c11
 
-        "ld s4, 24(s2)\n\t" // rs_c
-        "add s4, s4, -1\n\t"
-        "beq s4, zero, .rscokay%=\n\t"
+        //"ld %[cs_c], 24(s2)\n\t" // rs_c
+        "add %[rs_c_pref_dist], %[rs_c_pref_dist], -1\n\t"
+        "beq %[rs_c_pref_dist], zero, .rscokay%=\n\t"
         "unimp\n\t" // Fail if rs_c != 1
         ".rscokay%=:"
-        "ld s7, 96(s2)\n\t" // a_next
-        "ld s8, 104(s2)\n\t" // b_next
-        "ld s3, 40(s2)\n\t"  // vlen
-        "vsetvli s3, s3, e64, m1, ta, ma\n\t"
-        "slli s3,s3,3\n\t"
-        "slli t6,s3,1\n\t"
+        // load pref_dist
+        "li %[rs_c_pref_dist], 7\n\t"
+        //"ld %[anext_cstride], 96(s2)\n\t" // a_next
+        //"ld %[bnext_vdown], 104(s2)\n\t" // b_next
+        //"ld %[vlen], 40(s2)\n\t"  // vlen
+        "vsetvli %[vlen], %[vlen], e64, m1, ta, ma\n\t"
+        "slli %[vlen],%[vlen],3\n\t"
 
         // scalars
-        "ld s4, 48(s2)\n\t" //alpha
-        "fld f1, 0(s4)\n\t"
+        //"ld %[cs_c], 48(s2)\n\t" //alpha
+        "fld f1, 0(%[alpha_pref_ptr])\n\t"
         
         // B11-tile
-        "ld t4, 80(s2)\n\t" // b11
-        "add s9, t4, 0\n\t"
-        "ld s4, 32(s2)\n\t" // cs_c
-        "slli s4, s4, 3\n\t"
+        //"ld %[b11], 80(s2)\n\t" // b11
+        "mv %[alpha_pref_ptr], %[b11]\n\t"
+        //"ld %[cs_c], 32(s2)\n\t" // cs_c
+        "slli %[cs_c], %[cs_c], 3\n\t"
 
         // pull up zeroing for potential skip at k=0
         "vmv.v.i v1,0\n\t"
@@ -156,221 +169,226 @@ void bli_dgemmtrsm_l_x60_2vx14(
         "vmv.v.i v27,0\n\t"
         "vmv.v.i v28,0\n\t"
         // counters
-        "ld t5, 0(s2)\n\t" // k
-        "beq t5, zero, .k1done%=\n\t" // skip the gemm
-        "ld t5, 8(s2)\n\t" // kc
-        "ld s5, 16(s2)\n\t" //kleft
+        // "ld t0, 0(s2)\n\t" // k
+        "beq %[k], zero, .k1done%=\n\t" // skip the gemm
+        //"ld t0, 8(s2)\n\t" // kc
+        //"ld s5, 16(s2)\n\t" //kleft
+        "divu t0, %[k], %[unroll_vlenxn]\n\t"
+        "remu %[k], %[k], %[unroll_vlenxn]\n\t"
+        
+        // Now reuse unroll for vlenxn
+        "slli %[unroll_vlenxn],%[vlen],1\n\t"
+
         // pointers
-        "ld t2, 72(s2)\n\t" // b01
-        "add t3, t2, 0\n\t"
-        "ld t0, 56(s2)\n\t" // a10
-        "add t1, t0, s3\n\t"
+        //"ld %[ptr21], 72(s2)\n\t" // b01
+        "add t2, %[ptr21], 0\n\t"
+        //"ld %[ptr11], 56(s2)\n\t" // a10
+        "add t1, %[ptr11], %[vlen]\n\t"
 
 
-        "li s6, 7\n\t" // prefetch distance (TODO: optimize)
         // preload
-        "vle64.v v29, (t0)\n\t"
-        "fld f2, 0(t2)\n\t"
-        "fld f3, 8(t2)\n\t"
-        "fld f4, 16(t2)\n\t"
-        "fld f5, 24(t2)\n\t"
+        "vle64.v v29, (%[ptr11])\n\t"
+        "fld f2, 0(%[ptr21])\n\t"
+        "fld f3, 8(%[ptr21])\n\t"
+        "fld f4, 16(%[ptr21])\n\t"
+        "fld f5, 24(%[ptr21])\n\t"
         "vle64.v v30, (t1)\n\t"
-        "fld f6, 32(t2)\n\t"
-        "fld f7, 40(t2)\n\t"
-        "fld f8, 48(t2)\n\t"
-        "fld f9, 56(t2)\n\t"
-        "fld f10, 64(t2)\n\t"
-        "fld f11, 72(t2)\n\t"
-        "fld f12, 80(t2)\n\t"
-        "fld f13, 88(t2)\n\t"
-        "fld f14, 96(t2)\n\t"
-        "fld f15, 104(t2)\n\t"
-        "beq t5, zero, .kdone%=\n\t"
-        "add t0, t0, t6\n\t"
-        "add t1, t1, t6\n\t"
-        "add t2, t2, 112\n\t"
-        "add t5,t5,-1\n\t"
-        "beq t5, zero, .klast%=\n\t"
+        "fld f6, 32(%[ptr21])\n\t"
+        "fld f7, 40(%[ptr21])\n\t"
+        "fld f8, 48(%[ptr21])\n\t"
+        "fld f9, 56(%[ptr21])\n\t"
+        "fld f10, 64(%[ptr21])\n\t"
+        "fld f11, 72(%[ptr21])\n\t"
+        "fld f12, 80(%[ptr21])\n\t"
+        "fld f13, 88(%[ptr21])\n\t"
+        "fld f14, 96(%[ptr21])\n\t"
+        "fld f15, 104(%[ptr21])\n\t"
+        "beq t0, zero, .kdone%=\n\t"
+        "add %[ptr11], %[ptr11], %[unroll_vlenxn]\n\t"
+        "add t1, t1, %[unroll_vlenxn]\n\t"
+        "add %[ptr21], %[ptr21], 112\n\t"
+        "add t0,t0,-1\n\t"
+        "beq t0, zero, .klast%=\n\t"
         "j .kloop%=\n\t"
         ".prefetchc%=:\n\t"
-        "prefetch.r 0(s9)\n\t" // B11 is packed, i.e. 14*2*vlen, so we can prefetch in increments of vlen
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
-        "add s9, s9, s3\n\t"
-        "prefetch.r 0(s9)\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t" // B11 is packed, i.e. 14*2*vlen, so we can prefetch in increments of vlen
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
+        "add %[alpha_pref_ptr], %[alpha_pref_ptr], %[vlen]\n\t"
+        "prefetch.r 0(%[alpha_pref_ptr])\n\t"
         ".kloop%=:\n\t"
-//            "prefetch.r 128(t0)\n\t"
+//            "prefetch.r 128(%[ptr11])\n\t"
             "vfmacc.vf v1, f2, v29\n\t"
             "vfmacc.vf v2, f2, v30\n\t"
             "vfmacc.vf v3, f3, v29\n\t"
-            "fld f19, 24(t2)\n\t"
-            "vle64.v v31, (t0)\n\t"
+            "fld f19, 24(%[ptr21])\n\t"
+            "vle64.v v31, (%[ptr11])\n\t"
             "vfmacc.vf v4, f3, v30\n\t"
             "vle64.v v0, (t1)\n\t"
             "vfmacc.vf v5, f4, v29\n\t"
             "vfmacc.vf v6, f4, v30\n\t"
             "vfmacc.vf v7, f5, v29\n\t"
-            "fld f18, 16(t2)\n\t"
+            "fld f18, 16(%[ptr21])\n\t"
             "vfmacc.vf v8, f5, v30\n\t"
             "vfmacc.vf v9, f6, v29\n\t"
-            "fld f16, 0(t2)\n\t"
+            "fld f16, 0(%[ptr21])\n\t"
             "vfmacc.vf v10, f6, v30\n\t"
             "vfmacc.vf v11, f7, v29\n\t"
-            "fld f20, 32(t2)\n\t"
+            "fld f20, 32(%[ptr21])\n\t"
             "vfmacc.vf v12, f7, v30\n\t"
-            "fld f21, 40(t2)\n\t"
+            "fld f21, 40(%[ptr21])\n\t"
             "vfmacc.vf v13, f8, v29\n\t"
-            "add t0, t0, t6\n\t"
+            "add %[ptr11], %[ptr11], %[unroll_vlenxn]\n\t"
             "vfmacc.vf v14, f8, v30\n\t"
-            "fld f22, 48(t2)\n\t"
+            "fld f22, 48(%[ptr21])\n\t"
             "vfmacc.vf v15, f9, v29\n\t"
-            "fld f17, 8(t2)\n\t"
-            "add t1, t1, t6\n\t"
+            "fld f17, 8(%[ptr21])\n\t"
+            "add t1, t1, %[unroll_vlenxn]\n\t"
             "vfmacc.vf v16, f9, v30\n\t"
             "vfmacc.vf v17, f10, v29\n\t"
-            "fld f23, 56(t2)\n\t"
+            "fld f23, 56(%[ptr21])\n\t"
             "vfmacc.vf v18, f10, v30\n\t"
-            "fld f24, 64(t2)\n\t"
+            "fld f24, 64(%[ptr21])\n\t"
             "vfmacc.vf v19, f11, v29\n\t"
             "vfmacc.vf v20, f11, v30\n\t"
-            "fld f25, 72(t2)\n\t"
-            "add t3, t3, 224\n\t"
+            "fld f25, 72(%[ptr21])\n\t"
+            "add t2, t2, 224\n\t"
             "vfmacc.vf v21, f12, v29\n\t"
             "vfmacc.vf v22, f12, v30\n\t"
-            "fld f26, 80(t2)\n\t"
+            "fld f26, 80(%[ptr21])\n\t"
             "vfmacc.vf v23, f13, v29\n\t"
-            "fld f9, 56(t3)\n\t"
+            "fld f9, 56(t2)\n\t"
             "vfmacc.vf v24, f13, v30\n\t"
-            "fld f27, 88(t2)\n\t"
+            "fld f27, 88(%[ptr21])\n\t"
             "vfmacc.vf v25, f14, v29\n\t"
             "nop\n\t"
             "vfmacc.vf v26, f14, v30\n\t"
-            "fld f28, 96(t2)\n\t"
+            "fld f28, 96(%[ptr21])\n\t"
             "vfmacc.vf v27, f15, v29\n\t"
             "vfmacc.vf v28, f15, v30\n\t"
-            "fld f29, 104(t2)\n\t"
+            "fld f29, 104(%[ptr21])\n\t"
             "nop\n\t"
             "vfmacc.vf v1, f16, v31\n\t"
-            "fld f3, 8(t3)\n\t"
+            "fld f3, 8(t2)\n\t"
             "vfmacc.vf v2, f16, v0\n\t"
-            "fld f4, 16(t3)\n\t"
-            "add t2, t2, 224\n\t"
+            "fld f4, 16(t2)\n\t"
+            "add %[ptr21], %[ptr21], 224\n\t"
             "vfmacc.vf v3, f17, v31\n\t"
             "vfmacc.vf v4, f17, v0\n\t"
             "vfmacc.vf v5, f18, v31\n\t"
             "vfmacc.vf v6, f18, v0\n\t"
             "vfmacc.vf v7, f19, v31\n\t"
-            "fld f5, 24(t3)\n\t"
-            "vle64.v v29, (t0)\n\t"
+            "fld f5, 24(t2)\n\t"
+            "vle64.v v29, (%[ptr11])\n\t"
             "vfmacc.vf v8, f19, v0\n\t"
             "vfmacc.vf v9, f20, v31\n\t"
             "vfmacc.vf v10, f20, v0\n\t"
-            "fld f6, 32(t3)\n\t"
+            "fld f6, 32(t2)\n\t"
             "vfmacc.vf v11, f21, v31\n\t"
             "vfmacc.vf v12, f21, v0\n\t"
-            "fld f7, 40(t3)\n\t"
+            "fld f7, 40(t2)\n\t"
             "vfmacc.vf v13, f22, v31\n\t"
             "vfmacc.vf v14, f22, v0\n\t"
-            "fld f2, 0(t3)\n\t"
+            "fld f2, 0(t2)\n\t"
             //"nop\n\t"
             "vle64.v v30, (t1)\n\t"
             "vfmacc.vf v15, f23, v31\n\t"
             "vfmacc.vf v16, f23, v0\n\t"
-            "fld f10, 64(t3)\n\t"
-            "add t5,t5,-1\n\t"
+            "fld f10, 64(t2)\n\t"
+            "add t0,t0,-1\n\t"
             "vfmacc.vf v17, f24, v31\n\t"
             "vfmacc.vf v18, f24, v0\n\t"
             "vfmacc.vf v19, f25, v31\n\t"
             "vfmacc.vf v20, f25, v0\n\t"
-            "fld f11, 72(t3)\n\t"
+            "fld f11, 72(t2)\n\t"
             "vfmacc.vf v21, f26, v31\n\t"
-            "add t1, t1, t6\n\t"
+            "add t1, t1, %[unroll_vlenxn]\n\t"
             "vfmacc.vf v22, f26, v0\n\t"
-            "fld f12, 80(t3)\n\t"
+            "fld f12, 80(t2)\n\t"
             "vfmacc.vf v23, f27, v31\n\t"
             "vfmacc.vf v24, f27, v0\n\t"
-            "fld f13, 88(t3)\n\t"
+            "fld f13, 88(t2)\n\t"
             "vfmacc.vf v25, f28, v31\n\t"
-            "fld f8, 48(t3)\n\t"
-            "add t0, t0, t6\n\t"
+            "fld f8, 48(t2)\n\t"
+            "add %[ptr11], %[ptr11], %[unroll_vlenxn]\n\t"
             "vfmacc.vf v26, f28, v0\n\t"
-            "fld f14, 96(t3)\n\t"
+            "fld f14, 96(t2)\n\t"
             "vfmacc.vf v27, f29, v31\n\t"
             "vfmacc.vf v28, f29, v0\n\t"
-            "fld f15, 104(t3)\n\t"
-            "beq t5, s6, .prefetchc%=\n\t"
-            "bnez t5, .kloop%=\n\t"
+            "fld f15, 104(t2)\n\t"
+            "beq t0, %[rs_c_pref_dist], .prefetchc%=\n\t"
+            "bnez t0, .kloop%=\n\t"
         ".klast%=:\n\t"
             "vfmacc.vf v1, f2, v29\n\t"
             "vfmacc.vf v2, f2, v30\n\t"
             "vfmacc.vf v3, f3, v29\n\t"
             "vfmacc.vf v4, f3, v30\n\t"
-            "vle64.v v31, (t0)\n\t"
+            "vle64.v v31, (%[ptr11])\n\t"
             "vle64.v v0, (t1)\n\t"
             "vfmacc.vf v5, f4, v29\n\t"
             "vfmacc.vf v6, f4, v30\n\t"
-            "fld f19, 24(t2)\n\t"
+            "fld f19, 24(%[ptr21])\n\t"
             "vfmacc.vf v7, f5, v29\n\t"
-            "fld f18, 16(t2)\n\t"
+            "fld f18, 16(%[ptr21])\n\t"
             "vfmacc.vf v8, f5, v30\n\t"
             "vfmacc.vf v9, f6, v29\n\t"
-            "fld f16, 0(t2)\n\t"
+            "fld f16, 0(%[ptr21])\n\t"
             "vfmacc.vf v10, f6, v30\n\t"
             "vfmacc.vf v11, f7, v29\n\t"
-            "fld f20, 32(t2)\n\t"
+            "fld f20, 32(%[ptr21])\n\t"
             "vfmacc.vf v12, f7, v30\n\t"
-            "fld f21, 40(t2)\n\t"
+            "fld f21, 40(%[ptr21])\n\t"
             "vfmacc.vf v13, f8, v29\n\t"
-            "add t0, t0, t6\n\t"
+            "add %[ptr11], %[ptr11], %[unroll_vlenxn]\n\t"
             "vfmacc.vf v14, f8, v30\n\t"
-            "fld f22, 48(t2)\n\t"
+            "fld f22, 48(%[ptr21])\n\t"
             "vfmacc.vf v15, f9, v29\n\t"
-            "fld f17, 8(t2)\n\t"
-            "add t1, t1, t6\n\t"
+            "fld f17, 8(%[ptr21])\n\t"
+            "add t1, t1, %[unroll_vlenxn]\n\t"
             "vfmacc.vf v16, f9, v30\n\t"
-            "fld f23, 56(t2)\n\t"
+            "fld f23, 56(%[ptr21])\n\t"
             "vfmacc.vf v17, f10, v29\n\t"
             "vfmacc.vf v18, f10, v30\n\t"
-            "fld f24, 64(t2)\n\t"
+            "fld f24, 64(%[ptr21])\n\t"
             "vfmacc.vf v19, f11, v29\n\t"
             "vfmacc.vf v20, f11, v30\n\t"
-            "fld f25, 72(t2)\n\t"
-            "add t3, t3, 224\n\t"
+            "fld f25, 72(%[ptr21])\n\t"
+            "add t2, t2, 224\n\t"
             "vfmacc.vf v21, f12, v29\n\t"
             "vfmacc.vf v22, f12, v30\n\t"
-            "fld f26, 80(t2)\n\t"
+            "fld f26, 80(%[ptr21])\n\t"
             "vfmacc.vf v23, f13, v29\n\t"
             "vfmacc.vf v24, f13, v30\n\t"
-            "fld f27, 88(t2)\n\t"
+            "fld f27, 88(%[ptr21])\n\t"
             "vfmacc.vf v25, f14, v29\n\t"
             "nop\n\t"
             "vfmacc.vf v26, f14, v30\n\t"
-            "fld f28, 96(t2)\n\t"
+            "fld f28, 96(%[ptr21])\n\t"
             "vfmacc.vf v27, f15, v29\n\t"
             "vfmacc.vf v28, f15, v30\n\t"
-            "fld f29, 104(t2)\n\t"
+            "fld f29, 104(%[ptr21])\n\t"
             "nop\n\t"
             "vfmacc.vf v1, f16, v31\n\t"
             "vfmacc.vf v2, f16, v0\n\t"
@@ -401,174 +419,176 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "vfmacc.vf v26, f28, v0\n\t"
             "vfmacc.vf v27, f29, v31\n\t"
             "vfmacc.vf v28, f29, v0\n\t"
-//            "add t5,t5,-1\n\t"
+//            "add t0,t0,-1\n\t"
         ".kdone%=:\n\t"
-        "beq s5, zero, .k1done%=\n\t"
+        // move remainder into counter
+        "mv t0,%[k]\n\t"
+        "beq t0, zero, .k1done%=\n\t"
         ".k1loop%=:\n\t"
-            "vle64.v v29, (t0)\n\t"
+            "vle64.v v29, (%[ptr11])\n\t"
             "vle64.v v30, (t1)\n\t"
-            "fld f2, 0(t3)\n\t"
-            "fld f3, 8(t3)\n\t"
-            "fld f4, 16(t3)\n\t"
+            "fld f2, 0(t2)\n\t"
+            "fld f3, 8(t2)\n\t"
+            "fld f4, 16(t2)\n\t"
             "vfmacc.vf v1, f2, v29\n\t"
             "vfmacc.vf v2, f2, v30\n\t"
-            "fld f5, 24(t3)\n\t"
+            "fld f5, 24(t2)\n\t"
             "vfmacc.vf v3, f3, v29\n\t"
             "vfmacc.vf v4, f3, v30\n\t"
-            "fld f6, 32(t3)\n\t"
+            "fld f6, 32(t2)\n\t"
             "vfmacc.vf v5, f4, v29\n\t"
             "vfmacc.vf v6, f4, v30\n\t"
-            "fld f7, 40(t3)\n\t"
+            "fld f7, 40(t2)\n\t"
             "vfmacc.vf v7, f5, v29\n\t"
             "vfmacc.vf v8, f5, v30\n\t"
-            "fld f8, 48(t3)\n\t"
+            "fld f8, 48(t2)\n\t"
             "vfmacc.vf v9, f6, v29\n\t"
-            "add t0, t0, t6\n\t"
+            "add %[ptr11], %[ptr11], %[unroll_vlenxn]\n\t"
             "vfmacc.vf v10, f6, v30\n\t"
-            "fld f9, 56(t3)\n\t"
+            "fld f9, 56(t2)\n\t"
             "vfmacc.vf v11, f7, v29\n\t"
-            "add t1, t1, t6\n\t"
+            "add t1, t1, %[unroll_vlenxn]\n\t"
             "vfmacc.vf v12, f7, v30\n\t"
-            "fld f10, 64(t3)\n\t"
+            "fld f10, 64(t2)\n\t"
             "vfmacc.vf v13, f8, v29\n\t"
             "vfmacc.vf v14, f8, v30\n\t"
-            "fld f11, 72(t3)\n\t"
+            "fld f11, 72(t2)\n\t"
             "vfmacc.vf v15, f9, v29\n\t"
             "vfmacc.vf v16, f9, v30\n\t"
-            "fld f12, 80(t3)\n\t"
+            "fld f12, 80(t2)\n\t"
             "vfmacc.vf v17, f10, v29\n\t"
             "vfmacc.vf v18, f10, v30\n\t"
-            "fld f13, 88(t3)\n\t"
+            "fld f13, 88(t2)\n\t"
             "vfmacc.vf v19, f11, v29\n\t"
             "vfmacc.vf v20, f11, v30\n\t"
-            "fld f14, 96(t3)\n\t"
+            "fld f14, 96(t2)\n\t"
             "vfmacc.vf v21, f12, v29\n\t"
-            "add s5,s5,-1\n\t"
+            "add t0,t0,-1\n\t"
             "vfmacc.vf v22, f12, v30\n\t"
-            "fld f15, 104(t3)\n\t"
+            "fld f15, 104(t2)\n\t"
             "vfmacc.vf v23, f13, v29\n\t"
             "vfmacc.vf v24, f13, v30\n\t"
-            "add t3, t3, 112\n\t"
+            "add t2, t2, 112\n\t"
             "vfmacc.vf v25, f14, v29\n\t"
             "vfmacc.vf v26, f14, v30\n\t"
             "vfmacc.vf v27, f15, v29\n\t"
             "vfmacc.vf v28, f15, v30\n\t"
-            "bnez s5, .k1loop%=\n\t"
+            "bnez t0, .k1loop%=\n\t"
         ".k1done%=:\n\t"
 
 
-        "prefetch.r 0(s7)\n\t"
-        "prefetch.r 0(s8)\n\t"
+        "prefetch.r 0(%[anext_cstride])\n\t"
+        "prefetch.r 0(%[bnext_vdown])\n\t"
 
-        "add t0, t4, 0\n\t"   // load: B11
+        "add %[ptr11], %[b11], 0\n\t"   // load: B11
                                // From KernelsHowTo.md:        
                                // B11 is stored by rows with   
                                // leading dimension PACKNR,    
                                // where typically PACKNR = NR. 
                                //                              
-        "li  s7, 14\n\t"       // PACKNR                       
-        "mul t6, s3, s7\n\t"   // vlen*PACKNR*sizeof(double)   
-        "slli s7, s7, 3\n\t"   // PACKNR*sizeof(double)
-        "add t1, t0, t6\n\t"   // load: B11+vlen*PACKNR        
+        "li  %[anext_cstride], 14\n\t"       // PACKNR                       
+        "mul %[unroll_vlenxn], %[vlen], %[anext_cstride]\n\t"   // vlen*PACKNR*sizeof(double)   
+        "slli %[anext_cstride], %[anext_cstride], 3\n\t"   // PACKNR*sizeof(double)
+        "add t1, %[ptr11], %[unroll_vlenxn]\n\t"   // load: B11+vlen*PACKNR        
 
         // From KernelsHowTo.md:
         // Zero alpha. The microkernel can safely assume that alpha is non-zero;
         // "alpha equals zero" handling is performed at a much higher level,
         // which means that, in such a scenario, the microkernel will never get called.
-        //"bnez t5, .alphazero%=\n\t"
+        //"bnez t0, .alphazero%=\n\t"
         ".alphascale%=:\n\t" // TODO: written manually and unoptimized
             
-            "vlse64.v v29, (t0), s7\n\t"  // c0_1
-            "vlse64.v v30, (t1), s7\n\t"  // c0_2
-            "add t0, t0, 8\n\t"
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t"  // c0_1
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t"  // c0_2
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"  // c1_1
-            "vlse64.v v0, (t1), s7\n\t"  // c1_2
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"  // c1_1
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"  // c1_2
             "vfmsac.vf v1,  f1, v29\n\t" // c0_1
             "vfmsac.vf v2,  f1, v30\n\t" // c0_2
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v29, (t0), s7\n\t" // c2_1
-            "vlse64.v v30, (t1), s7\n\t" // c2_2
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t" // c2_1
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t" // c2_2
             "vfmsac.vf v3,  f1, v31\n\t"
             "vfmsac.vf v4,  f1, v0\n\t"
 
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"
-            "vlse64.v v0, (t1), s7\n\t"
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v5,  f1, v29\n\t"
             "vfmsac.vf v6,  f1, v30\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v29, (t0), s7\n\t"
-            "vlse64.v v30, (t1), s7\n\t"
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v7,  f1, v31\n\t"
             "vfmsac.vf v8,  f1, v0\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"
-            "vlse64.v v0, (t1), s7\n\t"
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v9,  f1, v29\n\t"
             "vfmsac.vf v10,  f1, v30\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v29, (t0), s7\n\t"
-            "vlse64.v v30, (t1), s7\n\t"
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v11,  f1, v31\n\t"
             "vfmsac.vf v12,  f1, v0\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"
-            "vlse64.v v0, (t1), s7\n\t"
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v13,  f1, v29\n\t"
             "vfmsac.vf v14,  f1, v30\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v29, (t0), s7\n\t"
-            "vlse64.v v30, (t1), s7\n\t"
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v15,  f1, v31\n\t"
             "vfmsac.vf v16,  f1, v0\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"
-            "vlse64.v v0, (t1), s7\n\t"
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v17,  f1, v29\n\t"
             "vfmsac.vf v18,  f1, v30\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v29, (t0), s7\n\t"
-            "vlse64.v v30, (t1), s7\n\t"
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v19,  f1, v31\n\t"
             "vfmsac.vf v20,  f1, v0\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"
-            "vlse64.v v0, (t1), s7\n\t"
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v21,  f1, v29\n\t"
             "vfmsac.vf v22,  f1, v30\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v29, (t0), s7\n\t"
-            "vlse64.v v30, (t1), s7\n\t"
+            "vlse64.v v29, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v30, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v23,  f1, v31\n\t"
             "vfmsac.vf v24,  f1, v0\n\t"
 
-            "add t0, t0, 8\n\t"
+            "add %[ptr11], %[ptr11], 8\n\t"
             "add t1, t1, 8\n\t"
-            "vlse64.v v31, (t0), s7\n\t"
-            "vlse64.v v0, (t1), s7\n\t"
+            "vlse64.v v31, (%[ptr11]), %[anext_cstride]\n\t"
+            "vlse64.v v0, (t1), %[anext_cstride]\n\t"
             "vfmsac.vf v25,  f1, v29\n\t"
             "vfmsac.vf v26,  f1, v30\n\t"
 
@@ -585,17 +605,17 @@ void bli_dgemmtrsm_l_x60_2vx14(
         //
         //
         // pointers
-        "add t0, s11, 0\n\t"  // load: a11
-        "add t1, t0, s3\n\t"  // load: a11 + vlen
+        "add %[ptr11], %[a11], 0\n\t"  // load: a11
+        "add t1, %[ptr11], %[vlen]\n\t"  // load: a11 + vlen
         // offsets
-        "slli t3, s3, 1\n\t"  // 2*vlen*sizeof(double)
+        "slli t2, %[vlen], 1\n\t"  // 2*vlen*sizeof(double)
         // counter
-        "srli t5, s3, 2\n\t"  // loop counter: vlen*2
+        "srli t0, %[vlen], 2\n\t"  // loop counter: vlen*2
                               // (vlen*sizeof(double)/4)
-        "srli t6, t5, 1\n\t"  // vlen in elements
+        "srli %[unroll_vlenxn], t0, 1\n\t"  // vlen in elements
         // vector mask for vle and vfnmsac
 
-        "add s8, t6, -1\n\t"
+        "add %[bnext_vdown], %[unroll_vlenxn], -1\n\t"
         
         // b1         |    b1
         // 1   -> f   |    2
@@ -635,32 +655,33 @@ void bli_dgemmtrsm_l_x60_2vx14(
         "vslide1down.vx v27, v27, zero\n\t"
         ".trsmv1%=:\n\t"
 
-            "vsetvli s3, s8, e64, m1, ta, ma\n\t"
-            "add t2, s10, 0\n\t"  // fstore: c11
+            "vsetvli %[vlen], %[bnext_vdown], e64, m1, ta, ma\n\t"
+            "add %[ptr21], %[c11], 0\n\t"  // fstore: c11
 
             // f28 < 1/aii
-            "fld f28, 0(t0)\n\t"
+            "fld f28, 0(%[ptr11])\n\t"
             #ifdef BLIS_ENABLE_TRSM_PREINVERSION
                 // Nothing
             #else
-                "li s5, 1\n\t"
-                "fcvt.d.l f1, s5\n\t" // 1.0
+                // we don't need k anymore so reuse it
+                "li %[k], 1\n\t"
+                "fcvt.d.l f1, %[k]\n\t" // 1.0
                 "fdiv.d f28, f1, f28\n\t" // 1/a11
             #endif
             "fmul.d f0, f28, f14\n\t"
-            "add t0, t0, 8\n\t" // next row
+            "add %[ptr11], %[ptr11], 8\n\t" // next row
             "fmul.d f1, f28, f15\n\t"
             "fmul.d f2, f28, f16\n\t"
-            "vle64.v v29, (t0)\n\t"
+            "vle64.v v29, (%[ptr11])\n\t"
             "fmul.d f3, f28, f17\n\t"
             "fmul.d f4, f28, f18\n\t"
             "fmul.d f5, f28, f19\n\t"
-            "add t0, t0, t3\n\t" // next column (next aii)
+            "add %[ptr11], %[ptr11], t2\n\t" // next column (next aii)
             "fmul.d f6, f28, f20\n\t"
             "fmul.d f7, f28, f21\n\t"
             "fmul.d f8, f28, f22\n\t"
             "fmul.d f9, f28, f23\n\t"
-            "add t5, t5, -1\n\t"
+            "add t0, t0, -1\n\t"
             "fmul.d f10, f28, f24\n\t"
             "fmul.d f11, f28, f25\n\t"
             "fmul.d f12, f28, f26\n\t"
@@ -670,52 +691,52 @@ void bli_dgemmtrsm_l_x60_2vx14(
             // Output. This microkernel must write its result to two places: 
             // the submatrix B11 of the current packed micropanel of B and 
             // the submatrix C11 of the output matrix C
-            "fsd f0, (t2)\n\t"
-            "fsd f0, 0(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f1, (t2)\n\t"
-            "fsd f1, 8(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f2, (t2)\n\t"
-            "fsd f2, 16(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f3, (t2)\n\t"
-            "fsd f3, 24(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f4, (t2)\n\t"
-            "fsd f4, 32(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f5, (t2)\n\t"
-            "fsd f5, 40(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f6, (t2)\n\t"
-            "fsd f6, 48(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f7, (t2)\n\t"
-            "fsd f7, 56(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f8, (t2)\n\t"
-            "fsd f8, 64(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f9, (t2)\n\t"
-            "fsd f9, 72(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f10, (t2)\n\t"
-            "fsd f10, 80(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f11, (t2)\n\t"
-            "fsd f11, 88(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f12, (t2)\n\t"
-            "fsd f12, 96(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f13, (t2)\n\t"
-            "fsd f13, 104(t4)\n\t"
+            "fsd f0, (%[ptr21])\n\t"
+            "fsd f0, 0(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f1, (%[ptr21])\n\t"
+            "fsd f1, 8(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f2, (%[ptr21])\n\t"
+            "fsd f2, 16(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f3, (%[ptr21])\n\t"
+            "fsd f3, 24(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f4, (%[ptr21])\n\t"
+            "fsd f4, 32(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f5, (%[ptr21])\n\t"
+            "fsd f5, 40(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f6, (%[ptr21])\n\t"
+            "fsd f6, 48(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f7, (%[ptr21])\n\t"
+            "fsd f7, 56(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f8, (%[ptr21])\n\t"
+            "fsd f8, 64(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f9, (%[ptr21])\n\t"
+            "fsd f9, 72(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f10, (%[ptr21])\n\t"
+            "fsd f10, 80(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f11, (%[ptr21])\n\t"
+            "fsd f11, 88(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f12, (%[ptr21])\n\t"
+            "fsd f12, 96(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f13, (%[ptr21])\n\t"
+            "fsd f13, 104(%[b11])\n\t"
 
-            "add s10, s10, 8\n\t" // next row in c11
-            "add t4, t4, 112\n\t" // next row in b11
+            "add %[c11], %[c11], 8\n\t" // next row in c11
+            "add %[b11], %[b11], 112\n\t" // next row in b11
 
-            "beq t5, t6, .trsmv1end%=\n\t"
+            "beq t0, %[unroll_vlenxn], .trsmv1end%=\n\t"
 
             "vfnmsac.vf v1,  f0, v29\n\t"
             "vfnmsac.vf v3,  f1, v29\n\t"
@@ -732,10 +753,10 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "vfnmsac.vf v25, f12, v29\n\t"
             "vfnmsac.vf v27, f13, v29\n\t"
 
-            "vsetvli s3, t6, e64, m1, ta, ma\n\t"
+            "vsetvli %[vlen], %[unroll_vlenxn], e64, m1, ta, ma\n\t"
 
             "vle64.v v30, (t1)\n\t"
-            "add t1, t1, t3\n\t" // next column (next aii+vlen)
+            "add t1, t1, t2\n\t" // next column (next aii+vlen)
 
             "vfnmsac.vf v2,  f0, v30\n\t"
             "vfnmsac.vf v4,  f1, v30\n\t"
@@ -752,7 +773,7 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "vfnmsac.vf v26, f12, v30\n\t"
             "vfnmsac.vf v28, f13, v30\n\t"
 
-            "add s8, s8, -1\n\t"
+            "add %[bnext_vdown], %[bnext_vdown], -1\n\t"
 
             "vfmv.f.s f14, v1\n\t"
             "vfmv.f.s f15, v3\n\t"
@@ -787,10 +808,10 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "j .trsmv1%=\n\t"
         ".trsmv1end%=:\n\t"
         
-        "vsetvli s3, t6, e64, m1, ta, ma\n\t"
+        "vsetvli %[vlen], %[unroll_vlenxn], e64, m1, ta, ma\n\t"
 
         "vle64.v v30, (t1)\n\t"
-        "add t1, t1, t3\n\t" // next column (next aii+vlen)
+        "add t1, t1, t2\n\t" // next column (next aii+vlen)
 
         "vfnmsac.vf v2, f0, v30\n\t"
         "vfnmsac.vf v4, f1, v30\n\t"
@@ -807,7 +828,7 @@ void bli_dgemmtrsm_l_x60_2vx14(
         "vfnmsac.vf v26, f12, v30\n\t"
         "vfnmsac.vf v28, f13, v30\n\t"
 
-        "add s8, t6, -1\n\t"
+        "add %[bnext_vdown], %[unroll_vlenxn], -1\n\t"
 
         "vfmv.f.s f14, v2\n\t"
         "vfmv.f.s f15, v4\n\t"
@@ -838,83 +859,84 @@ void bli_dgemmtrsm_l_x60_2vx14(
         "vslide1down.vx v26, v26, zero\n\t"
         "vslide1down.vx v28, v28, zero\n\t"
         ".trsmv2%=:\n\t"
-            "vsetvli s3, s8, e64, m1, ta, ma\n\t"
+            "vsetvli %[vlen], %[bnext_vdown], e64, m1, ta, ma\n\t"
 
-            "add t2, s10, 0\n\t"  // fstore: c11
+            "add %[ptr21], %[c11], 0\n\t"  // fstore: c11
 
-            "fld f28, 0(t0)\n\t"
+            "fld f28, 0(%[ptr11])\n\t"
             #ifdef BLIS_ENABLE_TRSM_PREINVERSION
                 // Nothing
             #else
-                "li s5, 1\n\t"
-                "fcvt.d.l f1, s5\n\t" // 1.0
+                // we don't need k anymore so reuse it
+                "li %[k], 1\n\t"
+                "fcvt.d.l f1, %[k]\n\t" // 1.0
                 "fdiv.d f28, f1, f28\n\t" // 1/a11
             #endif
             "fmul.d f0, f28, f14\n\t"
-            "add t0, t0, 8\n\t" // next row
+            "add %[ptr11], %[ptr11], 8\n\t" // next row
             "fmul.d f1, f28, f15\n\t"
             "fmul.d f2, f28, f16\n\t"
-            "vle64.v v30, (t0)\n\t"
+            "vle64.v v30, (%[ptr11])\n\t"
             "fmul.d f3, f28, f17\n\t"
             "fmul.d f4, f28, f18\n\t"
             "fmul.d f5, f28, f19\n\t"
-            "add t0, t0, t3\n\t" // next column
+            "add %[ptr11], %[ptr11], t2\n\t" // next column
             "fmul.d f6, f28, f20\n\t"
             "fmul.d f7, f28, f21\n\t"
             "fmul.d f8, f28, f22\n\t"
             "fmul.d f9, f28, f23\n\t"
-            "add t5, t5, -1\n\t"
+            "add t0, t0, -1\n\t"
             "fmul.d f10, f28, f24\n\t"
             "fmul.d f11, f28, f25\n\t"
             "fmul.d f12, f28, f26\n\t"
             "fmul.d f13, f28, f27\n\t"
 
-            "fsd f0, (t2)\n\t"
-            "fsd f0, 0(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f1, (t2)\n\t"
-            "fsd f1, 8(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f2, (t2)\n\t"
-            "fsd f2, 16(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f3, (t2)\n\t"
-            "fsd f3, 24(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f4, (t2)\n\t"
-            "fsd f4, 32(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f5, (t2)\n\t"
-            "fsd f5, 40(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f6, (t2)\n\t"
-            "fsd f6, 48(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f7, (t2)\n\t"
-            "fsd f7, 56(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f8, (t2)\n\t"
-            "fsd f8, 64(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f9, (t2)\n\t"
-            "fsd f9, 72(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f10, (t2)\n\t"
-            "fsd f10, 80(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f11, (t2)\n\t"
-            "fsd f11, 88(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f12, (t2)\n\t"
-            "fsd f12, 96(t4)\n\t"
-            "add t2, t2, s4\n\t"
-            "fsd f13, (t2)\n\t"
-            "fsd f13, 104(t4)\n\t"
+            "fsd f0, (%[ptr21])\n\t"
+            "fsd f0, 0(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f1, (%[ptr21])\n\t"
+            "fsd f1, 8(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f2, (%[ptr21])\n\t"
+            "fsd f2, 16(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f3, (%[ptr21])\n\t"
+            "fsd f3, 24(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f4, (%[ptr21])\n\t"
+            "fsd f4, 32(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f5, (%[ptr21])\n\t"
+            "fsd f5, 40(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f6, (%[ptr21])\n\t"
+            "fsd f6, 48(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f7, (%[ptr21])\n\t"
+            "fsd f7, 56(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f8, (%[ptr21])\n\t"
+            "fsd f8, 64(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f9, (%[ptr21])\n\t"
+            "fsd f9, 72(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f10, (%[ptr21])\n\t"
+            "fsd f10, 80(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f11, (%[ptr21])\n\t"
+            "fsd f11, 88(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f12, (%[ptr21])\n\t"
+            "fsd f12, 96(%[b11])\n\t"
+            "add %[ptr21], %[ptr21], %[cs_c]\n\t"
+            "fsd f13, (%[ptr21])\n\t"
+            "fsd f13, 104(%[b11])\n\t"
 
-            "add s10, s10, 8\n\t" // next row in c11
-            "add t4, t4, 112\n\t" // next row in b11
+            "add %[c11], %[c11], 8\n\t" // next row in c11
+            "add %[b11], %[b11], 112\n\t" // next row in b11
 
-            "beq t5, zero, .trsmv2end%=\n\t"
+            "beq t0, zero, .trsmv2end%=\n\t"
 
             "vfnmsac.vf v2, f0, v30\n\t"
             "vfnmsac.vf v4, f1, v30\n\t"
@@ -931,7 +953,7 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "vfnmsac.vf v26, f12, v30\n\t"
             "vfnmsac.vf v28, f13, v30\n\t"
 
-            "add s8, s8, -1\n\t"
+            "add %[bnext_vdown], %[bnext_vdown], -1\n\t"
 
             "vfmv.f.s f14, v2\n\t"
             "vfmv.f.s f15, v4\n\t"
@@ -966,19 +988,25 @@ void bli_dgemmtrsm_l_x60_2vx14(
             "j .trsmv2%=\n\t"
         ".trsmv2end%=:\n\t"
 
-        : [dummy_c] "+m"(*(double(*)[])c11), [dummy_b] "+m"(*(double(*)[])b11)
-        : [inputs] "r" (&ukrinputs)
-        : "t0", "t1", "t2", "t3", "t4", "t5", "t6",
-        "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",
-        "f0","f1",
-        "f2","f3","f4","f5","f6","f7","f8","f9",
-        "f10","f11","f12","f13","f14","f15","f16","f17",
-        "f18","f19","f20","f21","f22","f23","f24","f25",
-        "f26","f27","f28","f29",
-        "v0", "v1","v2","v3","v4","v5","v6","v7","v8",
-        "v9","v10","v11","v12","v13","v14","v15","v16",
-        "v17","v18","v19","v20","v21","v22","v23","v24",
-        "v25","v26","v27","v28","v29","v30","v31"
+        : [dummy_c] "+m"(*(double(*)[])c11), [dummy_b] "+m"(*(double(*)[])b11),
+          [c11] "+r" (c11), [b11] "+r" (b11),
+          [ptr11] "+r" (ptr11), //[ptr12] "=r" (ptr12),
+          [ptr21] "+r" (ptr21), //[ptr22] "=r" (ptr22),
+          [anext_cstride] "+r" (anext_cstride), [bnext_vdown] "+r" (bnext_vdown),
+          [vlen] "+r" (vlen), [unroll_vlenxn] "+r" (unroll_vlenxn),
+          [k] "+r" (k),
+          [alpha_pref_ptr] "+r" (alpha_pref_ptr), [rs_c_pref_dist] "+r" (rs_c_pref_dist),
+          [cs_c] "+r" (cs_c)
+        : [a11] "r" (a11) 
+        : "t0", "t1", "t2",
+          "f0","f1","f2","f3","f4","f5","f6","f7",
+          "f8","f9","f10","f11","f12","f13","f14","f15",
+          "f16","f17","f18","f19","f20","f21","f22","f23",
+          "f24","f25","f26","f27","f28","f29",
+          "v0", "v1","v2","v3","v4","v5","v6","v7","v8",
+          "v9","v10","v11","v12","v13","v14","v15","v16",
+          "v17","v18","v19","v20","v21","v22","v23","v24",
+          "v25","v26","v27","v28","v29","v30","v31"
     );
 
     GEMMTRSM_UKR_FLUSH_CT(d);
