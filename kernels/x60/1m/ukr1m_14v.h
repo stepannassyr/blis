@@ -137,7 +137,7 @@ __asm__ (
 
         "add %[yptrprefetch], %[yptr], %[yfinoff]\n\t"
         "add %[yptrprefetch], %[yptrprefetch], %[ystride1]\n\t"
-        "prefetch.w (%[yptrprefetch])\n\t"
+        "prefetch.w 0(%[yptrprefetch])\n\t"
 
         COMPUTEBLOCK
 
