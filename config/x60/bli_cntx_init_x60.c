@@ -72,6 +72,7 @@ void bli_cntx_init_x60( cntx_t* cntx )
     }
 
     const uint64_t mr_d = 2*vlen/sizeof(double);
+    const uint64_t mr_s = 2*vlen/sizeof(float);
     const uint64_t nr = 14;
 
 
@@ -82,15 +83,19 @@ void bli_cntx_init_x60( cntx_t* cntx )
 
       // 1
       BLIS_COPYV_KER, BLIS_DOUBLE, bli_dcopyv_x60,
+      BLIS_COPYV_KER, BLIS_SINGLE, bli_scopyv_x60,
       BLIS_AXPYV_KER, BLIS_DOUBLE, bli_daxpyv_x60,
+      BLIS_AXPYV_KER, BLIS_SINGLE, bli_saxpyv_x60,
 
       // 1m
       BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60,
+      BLIS_PACKM_KER, BLIS_SINGLE, bli_spackm_x60,
       //BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60_2vx14,
 
       // 3
       // BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_x60_2vx14_2u,
       BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_x60_2vx14_2u,
+      BLIS_GEMM_UKR, BLIS_SINGLE,   bli_sgemm_x60_2vx14_2u,
       // BLIS_GEMM_UKR, BLIS_SCOMPLEX, bli_cgemm_x60_2vx14_2u,
       // BLIS_GEMM_UKR, BLIS_DCOMPLEX, bli_zgemm_x60_2vx14_2u,
 
@@ -107,6 +112,7 @@ void bli_cntx_init_x60( cntx_t* cntx )
       // level-3
       //BLIS_GEMM_UKR_ROW_PREF, BLIS_FLOAT,    FALSE,
       BLIS_GEMM_UKR_ROW_PREF, BLIS_DOUBLE,   FALSE,
+      BLIS_GEMM_UKR_ROW_PREF, BLIS_SINGLE,   FALSE,
       //BLIS_GEMM_UKR_ROW_PREF, BLIS_SCOMPLEX, FALSE,
       //BLIS_GEMM_UKR_ROW_PREF, BLIS_DCOMPLEX, FALSE,
 
@@ -120,11 +126,11 @@ void bli_cntx_init_x60( cntx_t* cntx )
     dim_t nc_f = bli_env_get_var("BLIS_OVERRIDE_NC_FACTOR", 304);
     dim_t kc   = bli_env_get_var("BLIS_OVERRIDE_KC", 280);
 
-    bli_blksz_init_easy( &blkszs[ BLIS_MR ],       -1,      mr_d,      -1,      -1 );
-    bli_blksz_init_easy( &blkszs[ BLIS_NR ],       -1,        nr,      -1,      -1 );
-    bli_blksz_init_easy( &blkszs[ BLIS_MC ],       -1, mc_f*mr_d,      -1,      -1 );
-    bli_blksz_init_easy( &blkszs[ BLIS_KC ],       -1,        kc,      -1,      -1 );
-    bli_blksz_init_easy( &blkszs[ BLIS_NC ],       -1,   nc_f*nr,      -1,      -1 );
+    bli_blksz_init_easy( &blkszs[ BLIS_MR ],      mr_s,      mr_d,      -1,      -1 );
+    bli_blksz_init_easy( &blkszs[ BLIS_NR ],        nr,        nr,      -1,      -1 );
+    bli_blksz_init_easy( &blkszs[ BLIS_MC ], mc_f*mr_s, mc_f*mr_d,      -1,      -1 );
+    bli_blksz_init_easy( &blkszs[ BLIS_KC ],        kc,        kc,      -1,      -1 );
+    bli_blksz_init_easy( &blkszs[ BLIS_NC ],   nc_f*nr,   nc_f*nr,      -1,      -1 );
 
     // Update the context with the current architecture's register and cache
     // blocksizes (and multiples) for native execution.

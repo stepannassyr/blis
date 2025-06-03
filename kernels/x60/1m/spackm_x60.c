@@ -5,7 +5,7 @@
 #include "../1/ukr1_macros.h"
 
 
-void bli_dpackm_x60
+void bli_spackm_x60
      (
              conj_t  conja,
              pack_t  schema,
@@ -23,9 +23,9 @@ void bli_dpackm_x60
 {
 
     // vlen should be half of MR
-    uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
+    uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_SINGLE, BLIS_MR, cntx )/2;
 
-    vlen *= sizeof(double);
+    vlen *= sizeof(float);
 
     // override vlen
     __asm__(
@@ -36,7 +36,7 @@ void bli_dpackm_x60
             :
        );
 
-    vlen = vlen/sizeof(double);
+    vlen = vlen/sizeof(float);
 
     const int64_t cdim  = cdim_;
     const int64_t mr    = 2*vlen;
@@ -59,9 +59,9 @@ void bli_dpackm_x60
 
     #define MAKEUNROLL MAKEUNROLL_I
 
-    #define SIZESHIFT "3"
-    #define SIZEBITS  "64"
-    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_D
+    #define SIZESHIFT "2"
+    #define SIZEBITS  "32"
+    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_S
     #define VTRANSFORM VFMA_F0
     #define VXTOY VFIRST
     #define VLOADY(vreg, addrreg)
@@ -83,7 +83,7 @@ void bli_dpackm_x60
         #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
 
 
-        if ( bli_deq1( *(( double* )kappa) ) )
+        if ( bli_deq1( *(( float* )kappa) ) )
         {
             #define PREPARE_SCALAR
             #define VTRANSFORM(vdst, vsrc) 
@@ -115,7 +115,7 @@ void bli_dpackm_x60
         }
         else  // *kappa != 1.0
         {
-            #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_D
+            #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_S
             #define VTRANSFORM VFMUL_F0
 
             if ( inca == 1 )  // continous memory.
@@ -162,7 +162,7 @@ void bli_dpackm_x60
         #define PREPARE_LDIMY(strideregvlen, ldimreg, sizeshift) PREPARE_LDIM_NON1(strideregvlen, ldimreg, sizeshift)
         #define LDIMFIXUP(fixup) fixup
 
-        if (bli_deq1(*(( double* )kappa)))
+        if (bli_deq1(*(( float* )kappa)))
         {
             #define LABELPREFIX "pck_nr_iag_kappa1"
             #define PREPARE_SCALAR
@@ -174,7 +174,7 @@ void bli_dpackm_x60
         else
         {
             #define LABELPREFIX "pck_nr_iag_kappag"
-            #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_D
+            #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_S
             #define VTRANSFORM VFMUL_F0
 
             #include "ukr1m_14v.h"
@@ -187,7 +187,7 @@ void bli_dpackm_x60
         //printf("unaccelerated packing with cdim=%ld, cdim_bcast=%ld, n=%ld, inca=%ld, lda=%ld, ldp=%ld\n",
         //        cdim, cdim_bcast, n, inca, lda, ldp);
         //printf("mr=%ld, nr=%ld\n", mr, nr);
-		bli_dscal2bbs_mxn
+		bli_sscal2bbs_mxn
 		(
 		  conja,
 		  cdim_,
@@ -198,7 +198,7 @@ void bli_dpackm_x60
 		);
 	}
 
-	bli_dset0s_edge
+	bli_sset0s_edge
 	(
 	  cdim_*cdim_bcast, cdim_max*cdim_bcast,
 	  n_, n_max_,

@@ -95,7 +95,7 @@ uint64_t yfinoff;
 uint64_t yptrprefetch;
 __asm__ (
     PREPARE_SCALAR
-    "vsetvli %[vlen], %[vlen], e64, m1, ta, ma\n\t"
+    "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m1, ta, ma\n\t"
 
     // unroll = vlen
     MAKEUNROLL("%[vlen]", "1", ID)
@@ -155,7 +155,7 @@ __asm__ (
     "beq %[counter], zero, ." LABELPREFIX "end%=\n\t"
     "." LABELPREFIX "loop%=:\n\t"
 
-        "vsetvli %[vlen], %[counter], e64, m1, ta, ma\n\t"
+        "vsetvli %[vlen], %[counter], e" SIZEBITS ", m1, ta, ma\n\t"
         PREPARE_LDIMX("%[xvstride]", "%[ldimx]", SIZESHIFT)
         PREPARE_LDIMY("%[yvstride]", "%[ldimy]", SIZESHIFT)
 

@@ -1,16 +1,16 @@
 
 
 #define VLOAD_STRIDED(vreg, addrreg, stride1reg)\
-    "vlse64.v " vreg ", (" addrreg "), " stride1reg "\n\t"
+    "vlse" SIZEBITS ".v " vreg ", (" addrreg "), " stride1reg "\n\t"
 
 #define VSTORE_STRIDED(vreg, addrreg, stride1reg)\
-    "vsse64.v " vreg ", (" addrreg "), " stride1reg "\n\t"
+    "vsse" SIZEBITS ".v " vreg ", (" addrreg "), " stride1reg "\n\t"
 
 #define VLOAD(vreg, addrreg)\
-    "vle64.v " vreg ", (" addrreg ")\n\t"
+    "vle" SIZEBITS ".v " vreg ", (" addrreg ")\n\t"
 
 #define VSTORE(vreg, addrreg)\
-    "vse64.v " vreg ", (" addrreg ")\n\t"
+    "vse" SIZEBITS ".v " vreg ", (" addrreg ")\n\t"
 
 
 #define VSTRIDE_FROM_1STRIDE_G(strideregvlen, stridereg1, sizeshift)\
@@ -45,8 +45,11 @@
 #define VFIRST(v1, v2) v1
 #define VSECOND(v1, v2) v2
 
-#define PREPARE_SCALAR_LOADF0\
+#define PREPARE_SCALAR_LOADF0_D\
     "fld f0, (%[scalarptr])\n\t"
+
+#define PREPARE_SCALAR_LOADF0_S\
+    "flw f0, (%[scalarptr])\n\t"
 
 #define TAILPREPARE_WHOLEV
 #define TAILPREPARE_VREST\

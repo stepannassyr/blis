@@ -5,7 +5,7 @@
 #include "ukr1_macros.h"
 
 
-void bli_daxpyv_x60(
+void bli_saxpyv_x60(
              conj_t  conjx,
              dim_t   n,
        const void*  alpha,
@@ -13,7 +13,7 @@ void bli_daxpyv_x60(
              void*  y, inc_t incy_,
        const cntx_t* cntx)
 {
-    if (bli_deq0(* ((double*)alpha)))
+    if (bli_deq0(* ((float*)alpha)))
     {
         return;
     }
@@ -22,9 +22,9 @@ void bli_daxpyv_x60(
     int64_t incy = incy_;
 
     // vlen should be half of MR
-    uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
+    uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_SINGLE, BLIS_MR, cntx )/2;
 
-    vlen *= sizeof(double);
+    vlen *= sizeof(float);
 
     // override vlen
     __asm__(
@@ -35,7 +35,7 @@ void bli_daxpyv_x60(
             :
        );
 
-    vlen = vlen/sizeof(double);
+    vlen = vlen/sizeof(float);
 
     const void* scalarptr = alpha;
     uint64_t xstride1 = incx;
@@ -45,9 +45,9 @@ void bli_daxpyv_x60(
 
     #define MAKEUNROLL MAKEUNROLL_FROMG
 
-    #define SIZESHIFT "3"
-    #define SIZEBITS  "64"
-    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_D
+    #define SIZESHIFT "2"
+    #define SIZEBITS  "32"
+    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_S
     #define VTRANSFORM VFMA_F0
     #define VXTOY VSECOND
     #define LDIMFIXUP(fixup) fixup
