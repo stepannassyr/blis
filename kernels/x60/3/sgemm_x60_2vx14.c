@@ -461,9 +461,9 @@ void bli_sgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
             "bnez %[counter], .k1loop%=\n\t"
         ".k1done%=:\n\t"
         "li %[bptr], 1\n\t"
-        "fcvt.d.l f4, %[bptr]\n\t" // f4=1.0
-        "fmv.d.x f5, zero\n\t" // f5=0.0
-        "feq.d %[aptr], f0, f4\n\t"
+        "fcvt.s.l f4, %[bptr]\n\t" // f4=1.0
+        "fmv.s.x f5, zero\n\t" // f5=0.0
+        "feq.s %[aptr], f0, f4\n\t"
         "bnez %[aptr],.alphaone%=\n\t"
         ".alphascale%=:\n\t"
             "vfmul.vf v1, v1, f0\n\t"
@@ -498,7 +498,7 @@ void bli_sgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
 
 
         "add %[aptr], %[cptr], 0\n\t"   // load: c
-        "feq.d %[counter], f1, f5\n\t" // >---------------------------
+        "feq.s %[counter], f1, f5\n\t" // >---------------------------
         "add %[aptr2], %[aptr], %[vlen]\n\t"      // load: c+vlen            |
         "add %[bptr2], %[aptr], 0\n\t"       // store: c                |
         "add %[cptr], %[aptr2], 0\n\t"       // store: c+vlen           |
@@ -658,7 +658,7 @@ void bli_sgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
             "vse32.v v28, (%[cptr])\n\t"
 
 
-            "j .dgemm_ukr_end%=\n\t"
+            "j .sgemm_ukr_end%=\n\t"
         ".betazero%=:\n\t" // TODO: written manually and unoptimized
             
             "vse32.v v1, (%[bptr2])\n\t"
@@ -729,7 +729,7 @@ void bli_sgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
             "vse32.v v27, (%[bptr2])\n\t"
             "vse32.v v28, (%[cptr])\n\t"
             
-        ".dgemm_ukr_end%=:\n\t"
+        ".sgemm_ukr_end%=:\n\t"
 
         "prefetch.r 0(%[a_next])\n\t"
         "prefetch.r 0(%[b_next])\n\t"
