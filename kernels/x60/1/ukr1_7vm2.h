@@ -2,7 +2,7 @@ __asm__ (
     "add s2, %[inputs], 0\n\t"
     PREPARE_SCALAR
     "ld s3, " I_VLEN "(s2)\n\t" // vlen
-    "vsetvli s3, s3, e" SIZEBITS ", m2, ta, ma\n\t"
+    "vsetvli s3, s3, e" SIZEBITS ", m2\n\t"
     PREPARE_STRIDEX("t6", "s5", I_INCX, SIZESHIFT)
     PREPARE_STRIDEY("t5", "s4", I_INCY, SIZESHIFT)
 
@@ -82,7 +82,7 @@ __asm__ (
     "ld t4, " I_NLEFT "(s2)\n\t" // nleft
     "beq t4, zero, ." LABELPREFIX "end%=\n\t"
     "." LABELPREFIX "loop%=:\n\t"
-        "vsetvli s3, t4, e" SIZEBITS ", m2, ta, ma\n\t"
+        "vsetvli s3, t4, e" SIZEBITS ", m2\n\t"
         PREPARE_LDIMX("t6", I_LDIMX, SIZESHIFT)
         PREPARE_LDIMY("t5", I_LDIMY, SIZESHIFT)
 

@@ -59,7 +59,8 @@ RISCV_ABI := lp64d
 #$(error The RISC-V compiler ABI $(RISCV_ABI) is not compatible with $(THIS_CONFIG))
 #endif
 
-CMISCFLAGS     := -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI)
+#CMISCFLAGS     := -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI)
+CMISCFLAGS     := -mepi
 CPICFLAGS      := -fPIC
 CWARNFLAGS     := -Wall -Wno-unused-function -Wfatal-errors
 
