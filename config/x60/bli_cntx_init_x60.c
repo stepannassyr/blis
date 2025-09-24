@@ -45,14 +45,17 @@ void bli_cntx_init_x60( cntx_t* cntx )
 
 	bli_cntx_init_x60_ref( cntx );
 
-	uint64_t vlen = bli_env_get_var("BLIS_RVV_OVERRIDE_VLEN", 0);
+    // 240 doubles/ 480 singles by default
+	uint64_t vlen = bli_env_get_var("BLIS_RVV_OVERRIDE_VLEN", 1920);
+    // max vlen by default
+	//uint64_t vlen = bli_env_get_var("BLIS_RVV_OVERRIDE_VLEN", 0);
     assert(0 == (vlen % 8));
     if (0 == vlen)
     {
         // vsetvlmax
         __asm__(
                 //"csrr %[vlen],vlenb\n\t"
-                "vsetvli %[vlen], zero, e8, m1, ta, ma\n\t"
+                "vsetvli %[vlen], zero, e8, m1\n\t"
                 : [vlen] "+r" (vlen)
                 :
                 :
@@ -64,7 +67,7 @@ void bli_cntx_init_x60( cntx_t* cntx )
         // override vlen
         __asm__(
                 //"csrr %[vlen],vlenb\n\t"
-                "vsetvli %[vlen], %[vlen], e8, m1, ta, ma\n\t"
+                "vsetvli %[vlen], %[vlen], e8, m1\n\t"
                 : [vlen] "+r" (vlen)
                 :
                 :
@@ -126,9 +129,16 @@ void bli_cntx_init_x60( cntx_t* cntx )
       BLIS_VA_END
     );
 
-    dim_t mc_f = bli_env_get_var("BLIS_OVERRIDE_MC_FACTOR", 20);
-    dim_t nc_f = bli_env_get_var("BLIS_OVERRIDE_NC_FACTOR", 304);
-    dim_t kc   = bli_env_get_var("BLIS_OVERRIDE_KC", 280);
+    // Seems to do well on sg2042
+    // dim_t mc_f = bli_env_get_var("BLIS_OVERRIDE_MC_FACTOR", 20);
+    dim_t mc_f = bli_env_get_var("BLIS_OVERRIDE_MC_FACTOR", 40);
+    // Seems to do well on sg2042
+    // dim_t nc_f = bli_env_get_var("BLIS_OVERRIDE_NC_FACTOR", 252);
+    dim_t nc_f = bli_env_get_var("BLIS_OVERRIDE_NC_FACTOR", 1008);
+    // Seems to do well on sg2042
+    // dim_t kc   = bli_env_get_var("BLIS_OVERRIDE_KC", 202);
+    // Does well on
+    dim_t kc   = bli_env_get_var("BLIS_OVERRIDE_KC", 768);
 
     bli_blksz_init_easy( &blkszs[ BLIS_MR ],      mr_s,      mr_d,      -1,      -1 );
     bli_blksz_init_easy( &blkszs[ BLIS_NR ],        nr,        nr,      -1,      -1 );

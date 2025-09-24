@@ -7,7 +7,7 @@ __asm__ (
     PREPARE_SCALAR
     // LMUL=2
     "slli %[vlen], %[vlen], 1\n\t"
-    "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m2, ta, ma\n\t"
+    "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m" LMUL "\n\t"
     
     // unroll = 4*vlen (vlen was *2 for LMUL=2 before)
     MAKEUNROLL("%[vlen]","2", SHIFT)

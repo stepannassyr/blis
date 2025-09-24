@@ -30,7 +30,7 @@ void bli_spackm_x60
     // override vlen
     __asm__(
             //"csrr %[vlen],vlenb\n\t"
-            "vsetvli %[vlen], %[vlen], e8, m1, ta, ma\n\t"
+            "vsetvli %[vlen], %[vlen], e8, m1\n\t"
             : [vlen] "+r" (vlen)
             :
             :

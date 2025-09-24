@@ -6,7 +6,7 @@ uint64_t counter;
 uint64_t unroll;
 __asm__ (
     PREPARE_SCALAR
-    "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m" LMUL ", ta, ma\n\t"
+    "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m" LMUL "\n\t"
 
 
     // unroll = 8*vlen

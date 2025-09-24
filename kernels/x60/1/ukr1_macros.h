@@ -1,16 +1,16 @@
 
 
 #define VLOAD_STRIDED(vreg, addrreg, stride1reg)\
-    "vlse" SIZEBITS ".v " vreg ", (" addrreg "), " stride1reg "\n\t"
+    "vlse.v " vreg ", (" addrreg "), " stride1reg "\n\t"
 
 #define VSTORE_STRIDED(vreg, addrreg, stride1reg)\
-    "vsse" SIZEBITS ".v " vreg ", (" addrreg "), " stride1reg "\n\t"
+    "vsse.v " vreg ", (" addrreg "), " stride1reg "\n\t"
 
 #define VLOAD(vreg, addrreg)\
-    "vle" SIZEBITS ".v " vreg ", (" addrreg ")\n\t"
+    "vle.v " vreg ", (" addrreg ")\n\t"
 
 #define VSTORE(vreg, addrreg)\
-    "vse" SIZEBITS ".v " vreg ", (" addrreg ")\n\t"
+    "vse.v " vreg ", (" addrreg ")\n\t"
 
 
 #define VSTRIDE_FROM_1STRIDE_G(strideregvlen, stridereg1, sizeshift)\
@@ -53,7 +53,7 @@
 
 #define TAILPREPARE_WHOLEV
 #define TAILPREPARE_VREST\
-    "vsetvli %[vlen], %[counter], e" SIZEBITS ", m2, ta, ma\n\t"\
+    "vsetvli %[vlen], %[counter], e" SIZEBITS ", m" LMUL "\n\t"\
     VSTRIDE_FROM_1STRIDE_X("%[xvstride]", "%[xstride1]", SIZESHIFT)\
     VSTRIDE_FROM_1STRIDE_Y("%[yvstride]", "%[ystride1]", SIZESHIFT)\
     PREPARE_LDIMX("%[xvstride]", "%[ldimx]", SIZESHIFT)\
