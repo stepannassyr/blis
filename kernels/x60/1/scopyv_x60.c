@@ -4,6 +4,9 @@
 
 #include "ukr1_macros.h"
 
+#define LMUL 2
+#define UKRINCLUDE "../1/ukr1_4u1vmx.h"
+
 void bli_scopyv_x60(
              conj_t  conjx,
              dim_t   n,
@@ -15,9 +18,9 @@ void bli_scopyv_x60(
     int64_t incy = incy_;
 
     // vlen should be half of MR
-    uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
-
-    vlen *= sizeof(float);
+    //uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
+    //vlen *= sizeof(float);
+    uint64_t vlen = bli_rvv_get_vlen();
 
     // override vlen
     __asm__(
@@ -61,6 +64,14 @@ void bli_scopyv_x60(
         #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
 
         #include UKRINCLUDE
+
+        #undef LABELPREFIX
+        #undef VLOADX
+        #undef VSTOREY
+        #undef PREPARE_STRIDEX
+        #undef PREPARE_STRIDEY
+        #undef VSTRIDE_FROM_1STRIDE_X
+        #undef VSTRIDE_FROM_1STRIDE_Y
     }
     else if (incx == 1)
     {
@@ -73,6 +84,14 @@ void bli_scopyv_x60(
         #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_G
 
         #include UKRINCLUDE
+
+        #undef LABELPREFIX
+        #undef VLOADX
+        #undef VSTOREY
+        #undef PREPARE_STRIDEX
+        #undef PREPARE_STRIDEY
+        #undef VSTRIDE_FROM_1STRIDE_X
+        #undef VSTRIDE_FROM_1STRIDE_Y
     }
     else if (incy == 1)
     {
@@ -85,6 +104,14 @@ void bli_scopyv_x60(
         #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
 
         #include UKRINCLUDE
+
+        #undef LABELPREFIX
+        #undef VLOADX
+        #undef VSTOREY
+        #undef PREPARE_STRIDEX
+        #undef PREPARE_STRIDEY
+        #undef VSTRIDE_FROM_1STRIDE_X
+        #undef VSTRIDE_FROM_1STRIDE_Y
     }
     else
     {
@@ -97,5 +124,13 @@ void bli_scopyv_x60(
         #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_G
 
         #include UKRINCLUDE
+
+        #undef LABELPREFIX
+        #undef VLOADX
+        #undef VSTOREY
+        #undef PREPARE_STRIDEX
+        #undef PREPARE_STRIDEY
+        #undef VSTRIDE_FROM_1STRIDE_X
+        #undef VSTRIDE_FROM_1STRIDE_Y
     }
 }

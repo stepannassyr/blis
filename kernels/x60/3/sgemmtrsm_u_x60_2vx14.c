@@ -31,8 +31,6 @@ void bli_sgemmtrsm_u_x60_2vx14(
 
     const uint64_t unroll = 2;
 
-    uint64_t kc = k / unroll;
-    uint64_t kleft = k % unroll;
     uint64_t rs_c   = rsc;
     uint64_t cs_c   = csc;
 
@@ -61,37 +59,20 @@ void bli_sgemmtrsm_u_x60_2vx14(
     // TODO: vestigial kernels
     GEMMTRSM_UKR_SETUP_CT(s, vlen*2, 14, false);
 
-    //volatile ukrinputs_t ukrinputs;
-    //ukrinputs.k     = k;
-    //ukrinputs.kc    = kc;
-    //ukrinputs.kleft = kleft;
-    //ukrinputs.rs_c  = rs_c;
-    //ukrinputs.cs_c  = cs_c;
-    //ukrinputs.vlen  = vlen;
-    //ukrinputs.alpha = alpha;
-    //ukrinputs.a10 = a10;
-    //ukrinputs.a11 = a11;
-    //ukrinputs.b01 = b01;
-    //ukrinputs.b11 = b11;
-    //ukrinputs.c11 = c11;
-    //ukrinputs.a_next = a_next;
-    //ukrinputs.b_next = b_next;
 
     uint64_t anext_cstride_lastvel = (uint64_t)a_next;
     uint64_t bnext_vdown = (uint64_t)b_next;
 
     // init ptr11 to a10
     // it will be used as a10, b11 and a11
-    void* ptr11 = a12;
+    const void* ptr11 = a12;
 
     // init ptr21 to b01
     // it will be used as b01 and c11
-    void* ptr21 = b21;
+    const void* ptr21 = b21;
 
-    void* alpha_pref_ptr = alpha;
+    const void* alpha_pref_ptr = alpha;
     uint64_t rs_c_pref_dist = rs_c;
-
-    uint64_t counter = 0;
 
     uint64_t unroll_vlenxn = unroll;
     __asm__ (
