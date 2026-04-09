@@ -32,8 +32,6 @@ void bli_sgemmtrsm_l_x60_2vx14(
 
     const uint64_t unroll = 2;
 
-    uint64_t kc = k / unroll;
-    uint64_t kleft = k % unroll;
     uint64_t rs_c   = rsc;
     uint64_t cs_c   = csc;
 
@@ -67,18 +65,14 @@ void bli_sgemmtrsm_l_x60_2vx14(
 
     // init ptr11 to a10
     // it will be used as a10, b11 and a11
-    void* ptr11 = a10;
-    void* ptr12 = NULL;
+    const void* ptr11 = a10;
 
     // init ptr21 to b01
     // it will be used as b01 and c11
-    void* ptr21 = b01;
-    void* ptr22 = NULL;
+    const void* ptr21 = b01;
 
-    void* alpha_pref_ptr = alpha;
+    const void* alpha_pref_ptr = alpha;
     uint64_t rs_c_pref_dist = rs_c;
-
-    uint64_t counter = 0;
 
     uint64_t unroll_vlenxn = unroll;
     __asm__ (

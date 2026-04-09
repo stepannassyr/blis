@@ -8,23 +8,6 @@
 
 #include "blis.h"
 
-//struct ukrinputs_t
-//{
-//    uint64_t k;        // 0
-//    uint64_t kc;       // 8
-//    uint64_t kleft;    // 16
-//    uint64_t vlen;     // 24
-//    int64_t rs_c;      // 32
-//    int64_t cs_c;      // 40
-//    const void* alpha; // 48
-//    const void* beta;  // 56
-//    const void* a;     // 64
-//    const void* b;     // 72
-//    void* c;           // 80
-//    const void* a_next;// 88
-//    const void* b_next;// 96
-//};
-//
 
 #define SIZESHIFT "3"
 #define SIZEBITS "64"
@@ -72,21 +55,6 @@ void bli_dgemm_x60_2vx14_2u(dim_t m, dim_t n, dim_t k,
 
     GEMM_UKR_SETUP_CT( d, vlen*2, 14, false );
 
-
-    //volatile struct ukrinputs_t ukrinputs;
-    //ukrinputs.k = k;
-    //ukrinputs.kc = kc;
-    //ukrinputs.kleft = kleft;
-    //ukrinputs.vlen = vlen;
-    //ukrinputs.rs_c = rs_c;
-    //ukrinputs.cs_c = cs_c;
-    //ukrinputs.alpha = alpha;
-    //ukrinputs.beta = beta;
-    //ukrinputs.a = a;
-    //ukrinputs.b = b;
-    //ukrinputs.c = c;
-    //ukrinputs.a_next = a_next;
-    //ukrinputs.b_next = b_next;
 
     // prefetch distance
     uint64_t pfdist = 7;

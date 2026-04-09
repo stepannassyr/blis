@@ -34,42 +34,13 @@
 
 #include "blis.h"
 
-#include <assert.h>
-
-// no idea why it's missing
-//extern void bli_cntx_init_x60_ref(cntx_t* cntx);
-
 void bli_cntx_init_x60( cntx_t* cntx )
 {
 	blksz_t blkszs[ BLIS_NUM_BLKSZS ];
 
 	bli_cntx_init_x60_ref( cntx );
 
-	uint64_t vlen = bli_env_get_var("BLIS_RVV_OVERRIDE_VLEN", 0);
-    assert(0 == (vlen % 8));
-    if (0 == vlen)
-    {
-        // vsetvlmax
-        __asm__(
-                //"csrr %[vlen],vlenb\n\t"
-                "vsetvli %[vlen], zero, e8, m1, ta, ma\n\t"
-                : [vlen] "+r" (vlen)
-                :
-                :
-           );
-
-    }
-    else
-    {
-        // override vlen
-        __asm__(
-                //"csrr %[vlen],vlenb\n\t"
-                "vsetvli %[vlen], %[vlen], e8, m1, ta, ma\n\t"
-                : [vlen] "+r" (vlen)
-                :
-                :
-           );
-    }
+	uint64_t vlen = bli_rvv_get_vlen();
 
     const uint64_t mr_d = 2*vlen/sizeof(double);
     const uint64_t mr_s = 2*vlen/sizeof(float);
@@ -90,14 +61,10 @@ void bli_cntx_init_x60( cntx_t* cntx )
       // 1m
       BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60,
       BLIS_PACKM_KER, BLIS_SINGLE, bli_spackm_x60,
-      //BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60_2vx14,
 
       // 3
-      // BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_x60_2vx14_2u,
       BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_x60_2vx14_2u,
       BLIS_GEMM_UKR, BLIS_SINGLE,   bli_sgemm_x60_2vx14_2u,
-      // BLIS_GEMM_UKR, BLIS_SCOMPLEX, bli_cgemm_x60_2vx14_2u,
-      // BLIS_GEMM_UKR, BLIS_DCOMPLEX, bli_zgemm_x60_2vx14_2u,
 
       BLIS_GEMMTRSM_L_UKR, BLIS_DOUBLE,   bli_dgemmtrsm_l_x60_2vx14,
       BLIS_GEMMTRSM_L_UKR, BLIS_SINGLE,   bli_sgemmtrsm_l_x60_2vx14,

@@ -1,4 +1,6 @@
 
+#define STR_I(x) #x
+#define STR(x) STR_I(x)
 
 #define VLOAD_STRIDED(vreg, addrreg, stride1reg)\
     "vlse" SIZEBITS ".v " vreg ", (" addrreg "), " stride1reg "\n\t"
@@ -51,9 +53,12 @@
 #define PREPARE_SCALAR_LOADF0_S\
     "flw f0, (%[scalarptr])\n\t"
 
+#define PREPARE_SCALAR_LOADF0_PASTER(dt_suffix) PREPARE_SCALAR_LOADF0_ ## dt_suffix
+#define PREPARE_SCALAR_LOADF0(dt_suffix) PREPARE_SCALAR_LOADF0_PASTER(dt_suffix)
+
 #define TAILPREPARE_WHOLEV
 #define TAILPREPARE_VREST\
-    "vsetvli %[vlen], %[counter], e" SIZEBITS ", m2, ta, ma\n\t"\
+    "vsetvli %[vlen], %[counter], e" SIZEBITS ", m" STR(LMUL) ", ta, ma\n\t"\
     VSTRIDE_FROM_1STRIDE_X("%[xvstride]", "%[xstride1]", SIZESHIFT)\
     VSTRIDE_FROM_1STRIDE_Y("%[yvstride]", "%[ystride1]", SIZESHIFT)\
     PREPARE_LDIMX("%[xvstride]", "%[ldimx]", SIZESHIFT)\
