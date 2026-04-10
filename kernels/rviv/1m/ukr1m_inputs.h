@@ -1,6 +1,4 @@
 #include <stdint.h>
 
-#define UKRINCLUDE "../1/ukr1_4u1vmx.h"
-
 #define TAILPREPARE TAILPREPARE_WHOLEV
 #define TAILDECREMENT TAILDECREMENT_WHOLEV

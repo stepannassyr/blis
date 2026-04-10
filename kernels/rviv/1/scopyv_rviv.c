@@ -17,14 +17,10 @@ void bli_scopyv_rviv(
     int64_t incx = incx_;
     int64_t incy = incy_;
 
-    // vlen should be half of MR
-    //uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
-    //vlen *= sizeof(float);
     uint64_t vlen = bli_rvv_get_vlen();
 
     // override vlen
     __asm__(
-            //"csrr %[vlen],vlenb\n\t"
             "vsetvli %[vlen], %[vlen], e8, m1, ta, ma\n\t"
             : [vlen] "+r" (vlen)
             :
