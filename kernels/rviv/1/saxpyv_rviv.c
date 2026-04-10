@@ -7,18 +7,24 @@
 #define LMUL 2
 #define UKRINCLUDE "../1/ukr1_4u1vmx.h"
 
-void bli_scopyv_x60(
+void bli_saxpyv_rviv(
              conj_t  conjx,
              dim_t   n,
+       const void*  alpha,
        const void*  x, inc_t incx_,
              void*  y, inc_t incy_,
        const cntx_t* cntx)
 {
+    if (bli_deq0(* ((float*)alpha)))
+    {
+        return;
+    }
+
     int64_t incx = incx_;
     int64_t incy = incy_;
 
     // vlen should be half of MR
-    //uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_DOUBLE, BLIS_MR, cntx )/2;
+    //uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_SINGLE, BLIS_MR, cntx )/2;
     //vlen *= sizeof(float);
     uint64_t vlen = bli_rvv_get_vlen();
 
@@ -33,7 +39,7 @@ void bli_scopyv_x60(
 
     vlen = vlen/sizeof(float);
 
-    const void* scalarptr = NULL;
+    const void* scalarptr = alpha;
     uint64_t xstride1 = incx;
     uint64_t ystride1 = incy;
     uint64_t ldimx = 1;
@@ -43,20 +49,19 @@ void bli_scopyv_x60(
 
     #define SIZESHIFT "2"
     #define SIZEBITS  "32"
-    #define PREPARE_SCALAR
-    #define VTRANSFORM(vdst, vsrc) 
-    #define VXTOY VFIRST
-    #define VLOADY(vreg, addrreg)
+    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_S
+    #define VTRANSFORM VFMA_F0
+    #define VXTOY VSECOND
     #define LDIMFIXUP(fixup) fixup
 
     #define PREPARE_LDIMX(strideregvlen, ldimreg, sizeshift)
-    #define PREPARE_LDIMY(strideregvlen, ldimreg, sizeshift) 
+    #define PREPARE_LDIMY(strideregvlen, ldimreg, sizeshift)
 
-   
     if ((incx == 1) && (incy == 1))
     {
-        #define LABELPREFIX "copy1x1y"
+        #define LABELPREFIX "axpy1x1y"
         #define VLOADX VLOAD
+        #define VLOADY VLOAD
         #define VSTOREY VSTORE
         #define PREPARE_STRIDEX PREPARE_STRIDE_C
         #define PREPARE_STRIDEY PREPARE_STRIDE_C
@@ -67,6 +72,7 @@ void bli_scopyv_x60(
 
         #undef LABELPREFIX
         #undef VLOADX
+        #undef VLOADY
         #undef VSTOREY
         #undef PREPARE_STRIDEX
         #undef PREPARE_STRIDEY
@@ -75,8 +81,9 @@ void bli_scopyv_x60(
     }
     else if (incx == 1)
     {
-        #define LABELPREFIX "copy1xny"
+        #define LABELPREFIX "axpy1xny"
         #define VLOADX VLOAD
+        #define VLOADY(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[ystride1]")
         #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, "%[ystride1]")
         #define PREPARE_STRIDEX PREPARE_STRIDE_C
         #define PREPARE_STRIDEY PREPARE_STRIDE_G
@@ -87,6 +94,7 @@ void bli_scopyv_x60(
 
         #undef LABELPREFIX
         #undef VLOADX
+        #undef VLOADY
         #undef VSTOREY
         #undef PREPARE_STRIDEX
         #undef PREPARE_STRIDEY
@@ -95,8 +103,9 @@ void bli_scopyv_x60(
     }
     else if (incy == 1)
     {
-        #define LABELPREFIX "copynx1y"
+        #define LABELPREFIX "axpynx1y"
         #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
+        #define VLOADY VLOAD
         #define VSTOREY VSTORE
         #define PREPARE_STRIDEX PREPARE_STRIDE_G
         #define PREPARE_STRIDEY PREPARE_STRIDE_C
@@ -107,6 +116,7 @@ void bli_scopyv_x60(
 
         #undef LABELPREFIX
         #undef VLOADX
+        #undef VLOADY
         #undef VSTOREY
         #undef PREPARE_STRIDEX
         #undef PREPARE_STRIDEY
@@ -115,8 +125,9 @@ void bli_scopyv_x60(
     }
     else
     {
-        #define LABELPREFIX "copynxny"
+        #define LABELPREFIX "axpynxny"
         #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
+        #define VLOADY(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[ystride1]")
         #define VSTOREY(vreg, addrreg) VSTORE_STRIDED(vreg, addrreg, "%[ystride1]")
         #define PREPARE_STRIDEX PREPARE_STRIDE_G
         #define PREPARE_STRIDEY PREPARE_STRIDE_G
@@ -127,6 +138,7 @@ void bli_scopyv_x60(
 
         #undef LABELPREFIX
         #undef VLOADX
+        #undef VLOADY
         #undef VSTOREY
         #undef PREPARE_STRIDEX
         #undef PREPARE_STRIDEY

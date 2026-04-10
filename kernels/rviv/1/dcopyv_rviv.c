@@ -7,7 +7,7 @@
 #define LMUL 2
 #define UKRINCLUDE "../1/ukr1_4u1vmx.h"
 
-void bli_dcopyv_x60(
+void bli_dcopyv_rviv(
              conj_t  conjx,
              dim_t   n,
        const void*  x, inc_t incx_,

@@ -7,7 +7,7 @@
 #define LMUL 2
 #define UKRINCLUDE "../1/ukr1_4u1vmx.h"
 
-void bli_saxpyv_x60(
+void bli_daxpyv_rviv(
              conj_t  conjx,
              dim_t   n,
        const void*  alpha,
@@ -15,7 +15,7 @@ void bli_saxpyv_x60(
              void*  y, inc_t incy_,
        const cntx_t* cntx)
 {
-    if (bli_deq0(* ((float*)alpha)))
+    if (bli_deq0(* ((double*)alpha)))
     {
         return;
     }
@@ -23,9 +23,6 @@ void bli_saxpyv_x60(
     int64_t incx = incx_;
     int64_t incy = incy_;
 
-    // vlen should be half of MR
-    //uint64_t vlen = bli_cntx_get_blksz_def_dt( BLIS_SINGLE, BLIS_MR, cntx )/2;
-    //vlen *= sizeof(float);
     uint64_t vlen = bli_rvv_get_vlen();
 
     // override vlen
@@ -37,7 +34,7 @@ void bli_saxpyv_x60(
             :
        );
 
-    vlen = vlen/sizeof(float);
+    vlen = vlen/sizeof(double);
 
     const void* scalarptr = alpha;
     uint64_t xstride1 = incx;
@@ -47,9 +44,9 @@ void bli_saxpyv_x60(
 
     #define MAKEUNROLL MAKEUNROLL_FROMG
 
-    #define SIZESHIFT "2"
-    #define SIZEBITS  "32"
-    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_S
+    #define SIZESHIFT "3"
+    #define SIZEBITS  "64"
+    #define PREPARE_SCALAR PREPARE_SCALAR_LOADF0_D
     #define VTRANSFORM VFMA_F0
     #define VXTOY VSECOND
     #define LDIMFIXUP(fixup) fixup

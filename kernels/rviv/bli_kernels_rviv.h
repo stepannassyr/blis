@@ -32,7 +32,19 @@
 
 */
 
+#include "bli_vlen_utils.h"
+
 GEMM_UKR_PROT( float,    s, gemm_rviv_4vx4 )
 GEMM_UKR_PROT( double,   d, gemm_rviv_4vx4 )
 GEMM_UKR_PROT( scomplex, c, gemm_rviv_4vx4 )
 GEMM_UKR_PROT( dcomplex, z, gemm_rviv_4vx4 )
+
+
+
+COPYV_KER_PROT( double, d, copyv_rviv)
+COPYV_KER_PROT( float,  s, copyv_rviv)
+AXPYV_KER_PROT( double, d, axpyv_rviv)
+AXPYV_KER_PROT( float,  s, axpyv_rviv)
+
+PACKM_KER_PROT( double, d, packm_rviv )
+PACKM_KER_PROT( float,  s, packm_rviv )

@@ -53,14 +53,14 @@ void bli_cntx_init_x60( cntx_t* cntx )
       
 
       // 1
-      BLIS_COPYV_KER, BLIS_DOUBLE, bli_dcopyv_x60,
-      BLIS_COPYV_KER, BLIS_SINGLE, bli_scopyv_x60,
-      BLIS_AXPYV_KER, BLIS_DOUBLE, bli_daxpyv_x60,
-      BLIS_AXPYV_KER, BLIS_SINGLE, bli_saxpyv_x60,
+      BLIS_COPYV_KER, BLIS_DOUBLE, bli_dcopyv_rviv,
+      BLIS_COPYV_KER, BLIS_SINGLE, bli_scopyv_rviv,
+      BLIS_AXPYV_KER, BLIS_DOUBLE, bli_daxpyv_rviv,
+      BLIS_AXPYV_KER, BLIS_SINGLE, bli_saxpyv_rviv,
 
       // 1m
-      BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_x60,
-      BLIS_PACKM_KER, BLIS_SINGLE, bli_spackm_x60,
+      BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_rviv,
+      BLIS_PACKM_KER, BLIS_SINGLE, bli_spackm_rviv,
 
       // 3
       BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_x60_2vx14_2u,

@@ -4,7 +4,11 @@
 
 #include "../1/ukr1_macros.h"
 
-void bli_ddpackm_x60_ref
+#define MAKE_REF_NAME_PASTER(base, cname) base ## cname ## _ref
+#define MAKE_REF_NAME_EVAL(base, cname) MAKE_REF_NAME_PASTER(base,cname)
+#define MAKE_REF_NAME(base) MAKE_REF_NAME_EVAL(base, BLIS_CNAME)
+
+void MAKE_REF_NAME(bli_ddpackm_)
      (
              conj_t  conja,
              pack_t  schema,
@@ -20,7 +24,7 @@ void bli_ddpackm_x60_ref
        const cntx_t* cntx
      );
 
-void bli_dpackm_x60
+void bli_dpackm_rviv
      (
              conj_t  conja,
              pack_t  schema,
@@ -276,7 +280,7 @@ void bli_dpackm_x60
 		//  a,       inca, lda,
 		//  p, cdim_bcast, ldp
 		//);
-        bli_ddpackm_x60_ref
+        MAKE_REF_NAME(bli_ddpackm_)
         (
             conja, schema, cdim_, cdim_max, cdim_bcast,
             n_, n_max_, kappa, a, inca_, lda_,
