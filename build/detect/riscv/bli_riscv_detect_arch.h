@@ -100,6 +100,12 @@
 #define RISCV_V
 #endif
 
+#if __riscv_zicbop || FORCE_RISCV_ZICBOP
+#define RISCV_ZICBOP _zicbop
+#else
+#define RISCV_ZICBOP
+#endif
+
 /* No test currently for Zicsr, which was removed from the base ISA,
    but F implies Zicsr */
 #if __riscv_f
@@ -197,6 +203,12 @@
 #define RISCV_V
 #endif
 
+#if __riscv_zicbop || FORCE_RISCV_ZICBOP
+#define RISCV_ZICBOP _zicbop
+#else
+#define RISCV_ZICBOP
+#endif
+
 /* No test currently for Zicsr, which was removed from the base ISA, but
    F implies Zicsr */
 #if __riscv_flen >= 32
@@ -220,6 +232,6 @@
 CAT(rv, CAT(__riscv_xlen, CAT(RISCV_I, CAT(RISCV_E, CAT(RISCV_M, CAT(RISCV_A,
 CAT(RISCV_F, CAT(RISCV_D, CAT(RISCV_Q, CAT(RISCV_C, CAT(RISCV_P, CAT(RISCV_V,
 CAT(RISCV_ZICSR, CAT(RISCV_ZIFENCEI, CAT(RISCV_ZBA, CAT(RISCV_ZBB,
-CAT(RISCV_ZBC, CAT(RISCV_ZBS, RISCV_ZFH))))))))))))))))))
+CAT(RISCV_ZBC, CAT(RISCV_ZBS, CAT(RISCV_ZICBOP, RISCV_ZFH)))))))))))))))))))
 
 #endif /* __riscv */

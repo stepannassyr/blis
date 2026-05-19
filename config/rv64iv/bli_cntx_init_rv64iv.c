@@ -64,6 +64,17 @@ void bli_cntx_init_rv64iv( cntx_t* cntx )
 		(
 		  cntx,
 
+
+		  // level-1
+          BLIS_AXPYV_KER, BLIS_FLOAT, bli_saxpyv_rviv,
+          BLIS_AXPYV_KER, BLIS_DOUBLE, bli_daxpyv_rviv,
+          BLIS_COPYV_KER, BLIS_FLOAT, bli_scopyv_rviv,
+          BLIS_COPYV_KER, BLIS_DOUBLE, bli_dcopyv_rviv,
+
+          // Packing
+          BLIS_PACKM_KER, BLIS_FLOAT, bli_spackm_rviv,
+          BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_rviv,
+
 		  // level-3
 		  BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_rviv_4vx4,
 		  BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_rviv_4vx4,
