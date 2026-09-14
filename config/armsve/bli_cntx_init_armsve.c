@@ -93,25 +93,13 @@ void bli_cntx_init_armsve( cntx_t* cntx )
 	  BLIS_VA_END
 	);
 
-	// Set VL-specific packing routines if applicable.
-	if ( m_r_d == 16 )
-	{
-	  bli_cntx_set_ukrs
-	  (
-		cntx,
-		BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_armsve512_asm_16x10,
-		BLIS_VA_END
-	  );
-	}
-	else if ( m_r_d == 8 )
-	{
-	  bli_cntx_set_ukrs
-	  (
-		cntx,
-		BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_armsve256_int_8x10,
-		BLIS_VA_END
-	  );
-	}
+        bli_cntx_set_ukrs
+	(
+	  cntx,
+	  BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_sve,
+	  BLIS_PACKM_KER, BLIS_SINGLE, bli_spackm_sve,
+	  BLIS_VA_END
+	);
 
 	// Initialize level-3 blocksize objects with architecture-specific values.
 	//                                           s      d      c      z
