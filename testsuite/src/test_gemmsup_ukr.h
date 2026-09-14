@@ -5,6 +5,7 @@
    libraries.
 
    Copyright (C) 2014, The University of Texas at Austin
+   Copyright (C) 2018 - 2019, Advanced Micro Devices, Inc.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -32,47 +33,10 @@
 
 */
 
-BLIS_EXPORT_BLIS err_t bli_setijv
+void libblis_test_gemmsup_ukr
      (
-             double  ar,
-             double  ai,
-             dim_t   i,
-       const obj_t*  x
+       thread_data_t* tdata,
+       test_params_t* params,
+       test_op_t*     op
      );
-
-#undef  GENTPROT
-#define GENTPROT( ctype, ch, opname ) \
-\
-BLIS_EXPORT_BLIS void PASTEMAC(ch,opname) \
-     ( \
-       double ar, \
-       double ai, \
-       dim_t  i, \
-       ctype* x, inc_t incx  \
-     );
-
-INSERT_GENTPROT_BASIC( setijv )
-
-// -----------------------------------------------------------------------------
-
-BLIS_EXPORT_BLIS err_t bli_getijv
-      (
-              dim_t   i,
-        const obj_t*  x,
-              double* ar,
-              double* ai
-      );
-
-#undef  GENTPROT
-#define GENTPROT( ctype, ch, opname ) \
-\
-BLIS_EXPORT_BLIS void PASTEMAC(ch,opname) \
-     ( \
-             dim_t   i, \
-       const ctype*  b, inc_t incx, \
-             double* ar, \
-             double* ai  \
-     );
-
-INSERT_GENTPROT_BASIC( getijv )
 

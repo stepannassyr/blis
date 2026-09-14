@@ -4,7 +4,7 @@
    An object-based framework for developing high-performance BLAS-like
    libraries.
 
-   Copyright (C) 2014, The University of Texas at Austin
+   Copyright (C) 2024 - 2026, Advanced Micro Devices, Inc. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -32,47 +32,27 @@
 
 */
 
-BLIS_EXPORT_BLIS err_t bli_setijv
-     (
-             double  ar,
-             double  ai,
-             dim_t   i,
-       const obj_t*  x
-     );
-
-#undef  GENTPROT
-#define GENTPROT( ctype, ch, opname ) \
-\
-BLIS_EXPORT_BLIS void PASTEMAC(ch,opname) \
-     ( \
-       double ar, \
-       double ai, \
-       dim_t  i, \
-       ctype* x, inc_t incx  \
-     );
-
-INSERT_GENTPROT_BASIC( setijv )
-
-// -----------------------------------------------------------------------------
-
-BLIS_EXPORT_BLIS err_t bli_getijv
-      (
-              dim_t   i,
-        const obj_t*  x,
-              double* ar,
-              double* ai
-      );
-
-#undef  GENTPROT
-#define GENTPROT( ctype, ch, opname ) \
-\
-BLIS_EXPORT_BLIS void PASTEMAC(ch,opname) \
-     ( \
-             dim_t   i, \
-       const ctype*  b, inc_t incx, \
-             double* ar, \
-             double* ai  \
-     );
-
-INSERT_GENTPROT_BASIC( getijv )
-
+#include "blis.h"
+#ifdef BLIS_ENABLE_CBLAS
+/*
+ * cblas_zdrot.c
+ *
+ * The program is a C interface to zdrot.
+ *
+ *
+ */
+#include "cblas.h"
+#include "cblas_f77.h"
+void cblas_zdrot( f77_int N, void *X, f77_int incX, void *Y,
+                f77_int incY, const double c, const double s )
+{
+#ifdef F77_INT
+   F77_INT F77_N=N, F77_incX=incX; F77_incY=incY;
+#else
+   #define F77_N N
+   #define F77_incX incX
+   #define F77_incY incY
+#endif
+   F77_zdrot( &F77_N, (dcomplex*)X, &F77_incX, (dcomplex*)Y, &F77_incY, &c, &s );
+}
+#endif
