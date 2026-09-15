@@ -32,14 +32,5 @@
 
 */
 
-//#ifndef BLIS_FAMILY_H
-//#define BLIS_FAMILY_H
-
-
-// -- MEMORY ALLOCATION --------------------------------------------------------
-
-#define BLIS_SIMD_ALIGN_SIZE        256
-#define BLIS_SIMD_MAX_NUM_REGISTERS 32
-
-//#endif
-
+GEMM_UKR_PROT( double,   d, gemm_armsme_2Vx4Vx4 )
+GEMM_UKR_PROT( float,    s, gemm_armsme_2Vx2Vx4 )

@@ -980,6 +980,9 @@ typedef enum arch_e
 	BLIS_ARCH_ARMSVE,
 	BLIS_ARCH_A64FX,
 
+    // ARM-SME
+	BLIS_ARCH_ARMSME,
+
 	// ARM-NEON (4 pipes x 128-bit vectors)
 	BLIS_ARCH_ALTRAMAX,
 	BLIS_ARCH_ALTRA,

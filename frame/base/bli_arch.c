@@ -258,6 +258,9 @@ arch_t bli_arch_query_id_impl( void )
 		#ifdef BLIS_FAMILY_A64FX
 		id = BLIS_ARCH_A64FX;
 		#endif
+		#ifdef BLIS_FAMILY_ARMSME
+		id = BLIS_ARCH_ARMSME;
+		#endif
 
 		#ifdef BLIS_FAMILY_ALTRAMAX
 		id = BLIS_ARCH_ALTRAMAX;
@@ -365,6 +368,7 @@ static const char* config_name[ BLIS_NUM_ARCHS ] =
 
     "armsve",
     "a64fx",
+    "armsme",
 
 	"altramax",
 	"altra",

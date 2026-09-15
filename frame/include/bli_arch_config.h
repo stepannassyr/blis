@@ -127,6 +127,10 @@ INSERT_GENTCONF
 #ifdef BLIS_FAMILY_A64FX
 #include "bli_family_a64fx.h"
 #endif
+// ARM-SME
+#ifdef BLIS_FAMILY_ARMSME
+#include "bli_family_armsme.h"
+#endif
 // ARM-NEON (4x128)
 #ifdef BLIS_FAMILY_ALTRAMAX
 #include "bli_family_altramax.h"
@@ -243,6 +247,9 @@ INSERT_GENTCONF
 
 #ifdef BLIS_KERNELS_ARMSVE
 #include "bli_kernels_armsve.h"
+#endif
+#ifdef BLIS_KERNELS_ARMSME
+#include "bli_kernels_armsme.h"
 #endif
 #ifdef BLIS_KERNELS_ARMV8A
 #include "bli_kernels_armv8a.h"

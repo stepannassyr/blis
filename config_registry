@@ -36,6 +36,9 @@ bulldozer:   bulldozer
 armsve:      armsve/armsve
 a64fx:       a64fx/armsve
 
+# SME
+armsme:      armsme/armsme/armsve
+
 # ARM Neon64 (4 pipes x 128b) architectures.
 altramax:    altramax/armv8a
 altra:       altra/armv8a

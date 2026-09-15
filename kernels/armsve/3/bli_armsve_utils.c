@@ -34,6 +34,18 @@
 
 */
 #include "blis.h"
+//
+// SVE-specific configs.
+#define N_L1_SVE_DEFAULT 64
+#define W_L1_SVE_DEFAULT 4
+#define C_L1_SVE_DEFAULT 256
+#define N_L2_SVE_DEFAULT 2048
+#define W_L2_SVE_DEFAULT 16
+#define C_L2_SVE_DEFAULT 256
+#define N_L3_SVE_DEFAULT 8192
+#define W_L3_SVE_DEFAULT 16
+#define C_L3_SVE_DEFAULT 256
+
 
 dim_t bli_vl_bytes_armsve(void)
 { \
