@@ -78,6 +78,10 @@ void bli_cntx_init_armsme( cntx_t* cntx )
 	  BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_armsme_2Vx2Vx4,
 	  BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_armsme_2Vx4Vx4,
 
+      // level-1m
+	  BLIS_PACKM_KER, BLIS_FLOAT, bli_spackm_sve,
+	  BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_sve,
+
 	  BLIS_VA_END
 	);
 
@@ -87,17 +91,9 @@ void bli_cntx_init_armsme( cntx_t* cntx )
 	  cntx,
 
 	  // level-3
-	  BLIS_GEMM_UKR_ROW_PREF, BLIS_FLOAT,    FALSE,
-	  BLIS_GEMM_UKR_ROW_PREF, BLIS_DOUBLE,   FALSE,
+	  BLIS_GEMM_UKR_ROW_PREF, BLIS_FLOAT,    TRUE,
+	  BLIS_GEMM_UKR_ROW_PREF, BLIS_DOUBLE,   TRUE,
 
-	  BLIS_VA_END
-	);
-
-        bli_cntx_set_ukrs
-	(
-	  cntx,
-	  BLIS_PACKM_KER, BLIS_DOUBLE, bli_dpackm_sve,
-	  BLIS_PACKM_KER, BLIS_SINGLE, bli_spackm_sve,
 	  BLIS_VA_END
 	);
 

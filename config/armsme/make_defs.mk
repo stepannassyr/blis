@@ -45,7 +45,9 @@ THIS_CONFIG    := armsme
 # NOTE: The build system will append these variables with various
 # general-purpose/configuration-agnostic flags in common.mk. You
 # may specify additional flags here as needed.
-CPPROCFLAGS    := -D_GNU_SOURCE
+
+# might need to disable FA64 if compiling for apple M4+
+CPPROCFLAGS    := -D_GNU_SOURCE -DSME_FA64=1
 CMISCFLAGS     :=
 CPICFLAGS      := -fPIC
 CWARNFLAGS     :=
