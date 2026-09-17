@@ -47,7 +47,7 @@ THIS_CONFIG    := armsme
 # may specify additional flags here as needed.
 
 # might need to disable FA64 if compiling for apple M4+
-CPPROCFLAGS    := -D_GNU_SOURCE -DSME_FA64=1
+CPPROCFLAGS    := -D_GNU_SOURCE -DSME_FA64=1 -DUSE_LX2_ALLOCATOR
 CMISCFLAGS     :=
 CPICFLAGS      := -fPIC
 CWARNFLAGS     :=

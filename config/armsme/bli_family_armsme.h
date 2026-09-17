@@ -41,6 +41,41 @@
 #define BLIS_SIMD_MAX_NUM_REGISTERS 32
 #define BLIS_SIMD_MAX_SIZE          512
 
+#if defined(USE_LX2_ALLOCATOR)
+  #include <stddef.h>
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+    /* Allocate `size` bytes, rounded up to a page, bound to the HBM node local
+       to the calling thread's current CPU. Returns NULL on failure. The returned
+       pointer is page-aligned. */
+    void* lx2_malloc( size_t size );
+
+    /* Release a pointer previously returned by lx2_malloc. Passing anything else
+       is a programming error and aborts (see LX2_STRICT_FREE in lx2_malloc.c). */
+    void  lx2_free( void* p );
+
+    /* --- Introspection, for tests and sanity checks --- */
+
+    /* HBM node that serves `cpu`, or -1 if cpu is out of range. */
+    int   lx2_hbm_node_for_cpu( int cpu );
+
+    /* NUMA node currently backing the page at `p`, or -1 if not faulted in /
+       not determinable. Faults the page in if it is not resident. */
+    int   lx2_node_of_addr( const void* p );
+
+    /* Live mapping count and total mapped bytes. Either pointer may be NULL. */
+    void  lx2_stats( size_t* n_live, size_t* bytes_live );
+
+#ifdef __cplusplus
+    }
+#endif
+  #define BLIS_MALLOC_POOL lx2_malloc
+  #define BLIS_FREE_POOL lx2_free
+#endif
+
 
 //#endif
 
