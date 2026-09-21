@@ -217,12 +217,28 @@
 .endm
 
 /* C := beta*C + alpha*acc, or C := alpha*acc when bz */
-.macro SME_SCALE zc, zacc, bz, dt
+// .macro SME_SCALE zc, zacc, bz, dt
+//   .if \bz
+// 	fmul	z\zc\().\dt, z\zacc\().\dt, z24.\dt
+//   .else
+// 	fmul	z\zc\().\dt, z\zc\().\dt, z25.\dt
+// 	fmla	z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
+//   .endif
+// .endm
+
+// SPLIT scaling to pull dependent instructions apart
+
+.macro SME_SCALE_MUL zc, zacc, bz, dt
   .if \bz
-	fmul	z\zc\().\dt, z\zacc\().\dt, z24.\dt
+    fmul z\zc\().\dt, z\zacc\().\dt, z24.\dt
   .else
-	fmul	z\zc\().\dt, z\zc\().\dt, z25.\dt
-	fmla	z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
+    fmul z\zc\().\dt, z\zc\().\dt, z25.\dt
+  .endif
+.endm
+
+.macro SME_SCALE_MLA zc, zacc, bz, dt
+  .if \bz == 0
+    fmla z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
   .endif
 .endm
 
@@ -417,10 +433,15 @@
 	SME_LD_GS %(\zc+3), p0, x8,  %(26+\vl0+1), \dt
     .endif
   .endif
-	SME_SCALE %(\zc+0), %(\zacc+0), \bz, \dt
-	SME_SCALE %(\zc+1), %(\zacc+1), \bz, \dt
-	SME_SCALE %(\zc+2), %(\zacc+2), \bz, \dt
-	SME_SCALE %(\zc+3), %(\zacc+3), \bz, \dt
+	SME_SCALE_MUL %(\zc+0), %(\zacc+0), \bz, \dt
+	SME_SCALE_MUL %(\zc+1), %(\zacc+1), \bz, \dt
+	SME_SCALE_MUL %(\zc+2), %(\zacc+2), \bz, \dt
+	SME_SCALE_MUL %(\zc+3), %(\zacc+3), \bz, \dt
+
+	SME_SCALE_MLA %(\zc+0), %(\zacc+0), \bz, \dt
+	SME_SCALE_MLA %(\zc+1), %(\zacc+1), \bz, \dt
+	SME_SCALE_MLA %(\zc+2), %(\zacc+2), \bz, \dt
+	SME_SCALE_MLA %(\zc+3), %(\zacc+3), \bz, \dt
   .if \gs == 0
 	SME_ST %(\zc+0), p0, x15, %(\vl0),   \dt
 	SME_ST %(\zc+1), p0, x15, %(\vl0+1), \dt
@@ -499,10 +520,15 @@
 	SME_LD %(\zc+2), p0, \xb1, 0, \dt
 	SME_LD %(\zc+3), p0, \xb1, 1, \dt
   .endif
-	SME_SCALE %(\zc+0), %(\zacc+0), \bz, \dt
-	SME_SCALE %(\zc+1), %(\zacc+1), \bz, \dt
-	SME_SCALE %(\zc+2), %(\zacc+2), \bz, \dt
-	SME_SCALE %(\zc+3), %(\zacc+3), \bz, \dt
+	SME_SCALE_MUL %(\zc+0), %(\zacc+0), \bz, \dt
+	SME_SCALE_MUL %(\zc+1), %(\zacc+1), \bz, \dt
+	SME_SCALE_MUL %(\zc+2), %(\zacc+2), \bz, \dt
+	SME_SCALE_MUL %(\zc+3), %(\zacc+3), \bz, \dt
+
+	SME_SCALE_MLA %(\zc+0), %(\zacc+0), \bz, \dt
+	SME_SCALE_MLA %(\zc+1), %(\zacc+1), \bz, \dt
+	SME_SCALE_MLA %(\zc+2), %(\zacc+2), \bz, \dt
+	SME_SCALE_MLA %(\zc+3), %(\zacc+3), \bz, \dt
 	SME_ST %(\zc+0), p0, \xb0, 0, \dt
 	SME_ST %(\zc+1), p0, \xb0, 1, \dt
 	SME_ST %(\zc+2), p0, \xb1, 0, \dt
