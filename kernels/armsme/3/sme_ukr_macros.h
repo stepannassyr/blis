@@ -216,32 +216,168 @@
 	zero	{za\t\().\dt}
 .endm
 
-/* C := beta*C + alpha*acc, or C := alpha*acc when bz */
-// .macro SME_SCALE zc, zacc, bz, dt
-//   .if \bz
-// 	fmul	z\zc\().\dt, z\zacc\().\dt, z24.\dt
-//   .else
-// 	fmul	z\zc\().\dt, z\zc\().\dt, z25.\dt
-// 	fmla	z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
-//   .endif
-// .endm
+/* x\xd == 0  iff  *\xb == 1.0.  Unlike the zero test there is no sign
+   ambiguity: -1.0 is 0xBFF0.. and correctly reads as "not one".        */
+.macro SME_FP_ONE_TEST xd, xb, dt
+  .ifc \dt, d
+	ldr	x\xd, [\xb]
+	eor	x\xd, x\xd, #0x3FF0000000000000
+  .endif
+  .ifc \dt, s
+	ldr	w\xd, [\xb]
+	eor	w\xd, w\xd, #0x3F800000
+  .endif
+.endm
 
-// SPLIT scaling to pull dependent instructions apart
-
-.macro SME_SCALE_MUL zc, zacc, bz, dt
-  .if \bz
-    fmul z\zc\().\dt, z\zacc\().\dt, z24.\dt
+/* bmode 0 general: C := beta*C + alpha*acc
+   bmode 1 beta==0: C := alpha*acc
+   bmode 2 beta==1: C := C + alpha*acc                                   */
+.macro SME_SCALE_MUL zc, zacc, bmode, dt
+  .if \bmode == 1
+	fmul	z\zc\().\dt, z\zacc\().\dt, z24.\dt
+  .elseif \bmode == 2
+					/* nothing: the fmla does it all */
   .else
-    fmul z\zc\().\dt, z\zc\().\dt, z25.\dt
+	fmul	z\zc\().\dt, z\zc\().\dt, z25.\dt
   .endif
 .endm
 
-.macro SME_SCALE_MLA zc, zacc, bz, dt
-  .if \bz == 0
-    fmla z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
+.macro SME_SCALE_MLA zc, zacc, bmode, dt
+  .if \bmode != 1
+	fmla	z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
   .endif
 .endm
 
+/*---------------------------------------------------------------------------
+  DIRECT ZA <-> C  (alpha == 1 and beta in {0,1} only)
+
+  Verified against binutils 2.42: the ZA tile-slice LD1D/ST1D forms accept
+  only [Xn] and [Xn, Xm, LSL #esh] -- there is NO "#imm, MUL VL" form.  Xm is
+  an ELEMENT index, so column chunk j needs a register holding j*SVL.
+  Slice-immediate range and the w12-w15 selector constraint are identical to
+  MOVA, so the traversal below is the same shape as SME_STORE_ROWS/COLS.
+---------------------------------------------------------------------------*/
+/* Branch to \lbl unless C is unit-stride in one dimension.  The ZA-direct
+   preload and the ZA-direct store MUST use the same test.               */
+.macro SME_IF_STRIDED lbl
+	cmp	x10, #.LSME_ES
+	ccmp	x9,  #.LSME_ES, #4, ne
+	b.ne	\lbl
+.endm
+
+.macro SME_ZA_LDST_H dir, t, xb, xo, sl, dt
+  .ifc \dt, d
+    .if \dir
+	ld1d	{za\t\()h.d[w12, \sl]}, p0/z, [\xb, x\xo, lsl #3]
+    .else
+	st1d	{za\t\()h.d[w12, \sl]}, p0,   [\xb, x\xo, lsl #3]
+    .endif
+  .endif
+  .ifc \dt, s
+    .if \dir
+	ld1w	{za\t\()h.s[w12, \sl]}, p0/z, [\xb, x\xo, lsl #2]
+    .else
+	st1w	{za\t\()h.s[w12, \sl]}, p0,   [\xb, x\xo, lsl #2]
+    .endif
+  .endif
+.endm
+
+.macro SME_ZA_LDST_V dir, t, xb, xo, sl, dt
+  .ifc \dt, d
+    .if \dir
+	ld1d	{za\t\()v.d[w12, \sl]}, p0/z, [\xb, x\xo, lsl #3]
+    .else
+	st1d	{za\t\()v.d[w12, \sl]}, p0,   [\xb, x\xo, lsl #3]
+    .endif
+  .endif
+  .ifc \dt, s
+    .if \dir
+	ld1w	{za\t\()v.s[w12, \sl]}, p0/z, [\xb, x\xo, lsl #2]
+    .else
+	st1w	{za\t\()v.s[w12, \sl]}, p0,   [\xb, x\xo, lsl #2]
+    .endif
+  .endif
+.endm
+
+/* index registers: x3..x6 hold {0, SVL, 2*SVL, 3*SVL} elements (chunk j) */
+.macro SME_ZA_XOFF nblk
+	mov	x3, #0
+	mov	x4, x14
+	.if \nblk > 1
+	lsl	x5, x14, #1
+	add	x6, x5, x14
+	.endif
+.endm
+
+.macro SME_ZA_ROWS_GROUP dir, tb, vl0, sl, dt
+	SME_ZA_LDST_H \dir, %(\tb+0), x15, %(3+\vl0),   \sl, \dt
+	SME_ZA_LDST_H \dir, %(\tb+2), x15, %(3+\vl0+1), \sl, \dt
+	SME_ZA_LDST_H \dir, %(\tb+1), x8,  %(3+\vl0),   \sl, \dt
+	SME_ZA_LDST_H \dir, %(\tb+3), x8,  %(3+\vl0+1), \sl, \dt
+.endm
+
+/* dir 1 = C -> ZA (preload, beta==1), dir 0 = ZA -> C.  cs_c == 1.       */
+.macro SME_ZA_ROWS dir, dt, nblk
+	SME_ZA_XOFF \nblk
+	mov	x15, x7
+	madd	x8, x14, x9, x7
+	mov	w12, #0
+	lsr	x13, x14, #.LSME_NSLICE_LOG2
+.Lzr\@:
+	.set	.L_sl, 0
+	.rept	.LSME_NSLICE
+	  .set	.L_sb, 0
+	  .rept	\nblk
+	    SME_ZA_ROWS_GROUP \dir, %(4*.L_sb), %(2*.L_sb), %.L_sl, \dt
+	    .set .L_sb, .L_sb+1
+	  .endr
+	add	x15, x15, x9
+	add	x8,  x8,  x9
+	  .set	.L_sl, .L_sl+1
+	.endr
+	add	w12, w12, #.LSME_NSLICE
+	subs	x13, x13, #1
+	b.ne	.Lzr\@
+.endm
+
+/* rs_c == 1.  Chunk pointers x3..x6, row-half element offsets in x11/x17. */
+.macro SME_ZA_COLS_GROUP dir, tb, xb, sl, dt
+	SME_ZA_LDST_V \dir, %(\tb+0), \xb, 8,  \sl, \dt
+	SME_ZA_LDST_V \dir, %(\tb+1), \xb, 11, \sl, \dt
+.endm
+
+.macro SME_ZA_COLS dir, dt, nblk
+	mov	x8,  #0					// row half 0 element offset
+	mov	x11, x14				// row half 1 element offset
+	mov	x3, x7
+	madd	x4, x14, x10, x3
+	.if \nblk > 1
+	madd	x5, x14, x10, x4
+	madd	x6, x14, x10, x5
+	.endif
+	mov	w12, #0
+	lsr	x13, x14, #.LSME_NSLICE_LOG2
+.Lzc\@:
+	.set	.L_sl, 0
+	.rept	.LSME_NSLICE
+	    SME_ZA_COLS_GROUP \dir, 0, x3, %.L_sl, \dt
+	    SME_ZA_COLS_GROUP \dir, 2, x4, %.L_sl, \dt
+	  .if \nblk > 1
+	    SME_ZA_COLS_GROUP \dir, 4, x5, %.L_sl, \dt
+	    SME_ZA_COLS_GROUP \dir, 6, x6, %.L_sl, \dt
+	  .endif
+	add	x3, x3, x10
+	add	x4, x4, x10
+	  .if \nblk > 1
+	add	x5, x5, x10
+	add	x6, x6, x10
+	  .endif
+	  .set	.L_sl, .L_sl+1
+	.endr
+	add	w12, w12, #.LSME_NSLICE
+	subs	x13, x13, #1
+	b.ne	.Lzc\@
+.endm
 
 /*===========================================================================
   FUNCTION INTRO / OUTRO
@@ -415,12 +551,12 @@
   It covers row halves i=0 (at x15) and i=1 (at x8) crossed with column
   chunks 2b and 2b+1.
 ===========================================================================*/
-.macro SME_STORE_ROWS_GROUP tb, zacc, zc, vl0, sl, gs, bz, dt
+.macro SME_STORE_ROWS_GROUP tb, zacc, zc, vl0, sl, gs, bmode, dt
 	SME_MOVA_H %(\zacc+0), %(\tb+0), \sl, \dt	// i=0, j=vl0
 	SME_MOVA_H %(\zacc+1), %(\tb+2), \sl, \dt	// i=0, j=vl0+1
 	SME_MOVA_H %(\zacc+2), %(\tb+1), \sl, \dt	// i=1, j=vl0
 	SME_MOVA_H %(\zacc+3), %(\tb+3), \sl, \dt	// i=1, j=vl0+1
-  .if \bz == 0
+  .if \bmode != 1
     .if \gs == 0
 	SME_LD %(\zc+0), p0, x15, %(\vl0),   \dt
 	SME_LD %(\zc+1), p0, x15, %(\vl0+1), \dt
@@ -433,15 +569,15 @@
 	SME_LD_GS %(\zc+3), p0, x8,  %(26+\vl0+1), \dt
     .endif
   .endif
-	SME_SCALE_MUL %(\zc+0), %(\zacc+0), \bz, \dt
-	SME_SCALE_MUL %(\zc+1), %(\zacc+1), \bz, \dt
-	SME_SCALE_MUL %(\zc+2), %(\zacc+2), \bz, \dt
-	SME_SCALE_MUL %(\zc+3), %(\zacc+3), \bz, \dt
+	SME_SCALE_MUL %(\zc+0), %(\zacc+0), \bmode, \dt
+	SME_SCALE_MUL %(\zc+1), %(\zacc+1), \bmode, \dt
+	SME_SCALE_MUL %(\zc+2), %(\zacc+2), \bmode, \dt
+	SME_SCALE_MUL %(\zc+3), %(\zacc+3), \bmode, \dt
 
-	SME_SCALE_MLA %(\zc+0), %(\zacc+0), \bz, \dt
-	SME_SCALE_MLA %(\zc+1), %(\zacc+1), \bz, \dt
-	SME_SCALE_MLA %(\zc+2), %(\zacc+2), \bz, \dt
-	SME_SCALE_MLA %(\zc+3), %(\zacc+3), \bz, \dt
+	SME_SCALE_MLA %(\zc+0), %(\zacc+0), \bmode, \dt
+	SME_SCALE_MLA %(\zc+1), %(\zacc+1), \bmode, \dt
+	SME_SCALE_MLA %(\zc+2), %(\zacc+2), \bmode, \dt
+	SME_SCALE_MLA %(\zc+3), %(\zacc+3), \bmode, \dt
   .if \gs == 0
 	SME_ST %(\zc+0), p0, x15, %(\vl0),   \dt
 	SME_ST %(\zc+1), p0, x15, %(\vl0+1), \dt
@@ -477,7 +613,7 @@
 	add	z\zd\().\dt, z\zn\().\dt, z30.\dt
 .endm
 
-.macro SME_STORE_ROWS gs, bz, dt, nblk
+.macro SME_STORE_ROWS gs, bmode, dt, nblk
 	mov	x15, x7					// &C[0][0]
 	madd	x8, x14, x9, x7				// &C[SVL][0]
 	mov	w12, #0
@@ -489,7 +625,7 @@
 	  .rept	\nblk
 	    .set .L_g, .L_sl*\nblk + .L_sb			// group index
 	    SME_STORE_ROWS_GROUP %(4*.L_sb), %(4*(.L_g % 4)), %(16+4*(.L_g % 2)), \
-	                         %(2*.L_sb), %.L_sl, \gs, \bz, \dt
+	                         %(2*.L_sb), %.L_sl, \gs, \bmode, \dt
 	    .set .L_sb, .L_sb+1
 	  .endr
 	add	x15, x15, x9				// next C row
@@ -509,33 +645,33 @@
   which are contiguous in m, so both halves are plain MUL VL 0 / 1 accesses off
   that chunk's column pointer.  Chunk pointers are x3, x4, x5, x6.
 ===========================================================================*/
-.macro SME_STORE_COLS_GROUP tb, zacc, zc, xb0, xb1, sl, bz, dt
+.macro SME_STORE_COLS_GROUP tb, zacc, zc, xb0, xb1, sl, bmode, dt
 	SME_MOVA_V %(\zacc+0), %(\tb+0), \sl, \dt	// chunk 2b, rows 0
 	SME_MOVA_V %(\zacc+1), %(\tb+1), \sl, \dt	// chunk 2b, rows SVL
 	SME_MOVA_V %(\zacc+2), %(\tb+2), \sl, \dt	// chunk 2b+1, rows 0
 	SME_MOVA_V %(\zacc+3), %(\tb+3), \sl, \dt	// chunk 2b+1, rows SVL
-  .if \bz == 0
+  .if \bmode != 1
 	SME_LD %(\zc+0), p0, \xb0, 0, \dt
 	SME_LD %(\zc+1), p0, \xb0, 1, \dt
 	SME_LD %(\zc+2), p0, \xb1, 0, \dt
 	SME_LD %(\zc+3), p0, \xb1, 1, \dt
   .endif
-	SME_SCALE_MUL %(\zc+0), %(\zacc+0), \bz, \dt
-	SME_SCALE_MUL %(\zc+1), %(\zacc+1), \bz, \dt
-	SME_SCALE_MUL %(\zc+2), %(\zacc+2), \bz, \dt
-	SME_SCALE_MUL %(\zc+3), %(\zacc+3), \bz, \dt
+	SME_SCALE_MUL %(\zc+0), %(\zacc+0), \bmode, \dt
+	SME_SCALE_MUL %(\zc+1), %(\zacc+1), \bmode, \dt
+	SME_SCALE_MUL %(\zc+2), %(\zacc+2), \bmode, \dt
+	SME_SCALE_MUL %(\zc+3), %(\zacc+3), \bmode, \dt
 
-	SME_SCALE_MLA %(\zc+0), %(\zacc+0), \bz, \dt
-	SME_SCALE_MLA %(\zc+1), %(\zacc+1), \bz, \dt
-	SME_SCALE_MLA %(\zc+2), %(\zacc+2), \bz, \dt
-	SME_SCALE_MLA %(\zc+3), %(\zacc+3), \bz, \dt
+	SME_SCALE_MLA %(\zc+0), %(\zacc+0), \bmode, \dt
+	SME_SCALE_MLA %(\zc+1), %(\zacc+1), \bmode, \dt
+	SME_SCALE_MLA %(\zc+2), %(\zacc+2), \bmode, \dt
+	SME_SCALE_MLA %(\zc+3), %(\zacc+3), \bmode, \dt
 	SME_ST %(\zc+0), p0, \xb0, 0, \dt
 	SME_ST %(\zc+1), p0, \xb0, 1, \dt
 	SME_ST %(\zc+2), p0, \xb1, 0, \dt
 	SME_ST %(\zc+3), p0, \xb1, 1, \dt
 .endm
 
-.macro SME_STORE_COLS bz, dt, nblk
+.macro SME_STORE_COLS bmode, dt, nblk
 	.if \nblk > 2
 	  .error "SME_STORE_COLS: only x3..x6 are reserved for column pointers"
 	.endif
@@ -552,11 +688,11 @@
 	.rept	.LSME_NSLICE
 	    .set .L_g, .L_sl*\nblk
 	    SME_STORE_COLS_GROUP 0, %(4*(.L_g % 4)), %(16+4*(.L_g % 2)), \
-	                         x3, x4, %.L_sl, \bz, \dt
+	                         x3, x4, %.L_sl, \bmode, \dt
 	  .if \nblk > 1
 	    .set .L_g, .L_g+1
 	    SME_STORE_COLS_GROUP 4, %(4*(.L_g % 4)), %(16+4*(.L_g % 2)), \
-	                         x5, x6, %.L_sl, \bz, \dt
+	                         x5, x6, %.L_sl, \bmode, \dt
 	  .endif
 	add	x3, x3, x10				// next C column
 	add	x4, x4, x10

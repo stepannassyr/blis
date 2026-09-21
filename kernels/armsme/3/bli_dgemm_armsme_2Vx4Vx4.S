@@ -63,13 +63,44 @@ bli_dgemm_armsme_2Vx4Vx4:
 
 	// ===== MAIN LOOP ========================================================
 .Lmain:
+	// Everything the epilogue branches on is decided BEFORE the k-loop, so
+	// that the ZA preload and the store agree.  None of x0/x16/x17/z24/z25
+	// is touched by SME_KLOOP.
+	SME_LD1R 24, x3, d		// alpha  (only the Z-register paths use it)
+	SME_LD1R 25, x6, d		// beta
+	SME_BETA_ZERO_TEST 16, x6, d	// x16 == 0 <=> beta  == +-0.0
+	SME_FP_ONE_TEST    17, x6, d	// x17 == 0 <=> beta  == 1.0
+	SME_FP_ONE_TEST     0, x3, d	// x0  == 0 <=> alpha == 1.0   (m is dead)
+
+	// ---- preload C into ZA iff alpha==1 && beta==1 && unit stride ---------
+	cbnz	x0,  .Lkloop
+	cbnz	x17, .Lkloop
+	SME_IF_STRIDED .Lkloop
+	stp	x4, x5, [sp, #-16]!		// a/b: x3..x6 are the ZA pointers
+	cmp	x10, #.LSME_ES
+	b.ne	1f
+	SME_ZA_ROWS 1, d, UKR_NBLK		// C -> ZA, horizontal slices
+	b	2f
+1:	SME_ZA_COLS 1, d, UKR_NBLK		// C -> ZA, vertical slices
+2:	ldp	x4, x5, [sp], #16
+
+.Lkloop:
 	SME_KLOOP d, UKR_NBLK, UKR_NK
 
 	// ===== SCALE + STOREBLOCK ===============================================
-	SME_LD1R 24, x3, d		// alpha
-	SME_LD1R 25, x6, d		// beta
-	SME_BETA_ZERO_TEST 16, x6, d	// x16 == 0 <=> beta == +-0.0
+	cbnz	x0, .Lstore_gen			// alpha != 1 -> Z-register epilogue
+	SME_IF_STRIDED .Lstore_gen
+	cbz	x16, .Lstore_za			// beta == 0: ZA already holds acc
+	cbnz	x17, .Lstore_gen		// beta != 1: needs a real scale
+.Lstore_za:					// beta == 1: C was preloaded
+	cmp	x10, #.LSME_ES
+	b.ne	3f
+	SME_ZA_ROWS 0, d, UKR_NBLK		// ZA -> C, no Z registers at all
+	b	.Lfinalize
+3:	SME_ZA_COLS 0, d, UKR_NBLK
+	b	.Lfinalize
 
+.Lstore_gen:
 	cmp	x10, #.LSME_ES		// ---- cs_c == 1: row-major C ----------
 	b.eq	.Lstore_rm
 #if SME_FA64
@@ -77,28 +108,35 @@ bli_dgemm_armsme_2Vx4Vx4:
 	b.eq	.Lstore_cm
 	b	.Lstore_gs		// ---- general stride ------------------
 #else
-	b	.Lstore_cm		// rs_c == 1 guaranteed by the dispatch
-					// above (general stride went to .Ltail)
+	b	.Lstore_cm
 #endif
 
-.Lstore_rm:				// covers both "nostride" (rs_c==NR) and "rs"
+.Lstore_rm:
 	cbz	x16, .Lstore_rm_b0
+	cbz	x17, .Lstore_rm_b1
 	SME_STORE_ROWS 0, 0, d, UKR_NBLK
 	b	.Lfinalize
 .Lstore_rm_b0:
 	SME_STORE_ROWS 0, 1, d, UKR_NBLK
 	b	.Lfinalize
+.Lstore_rm_b1:
+	SME_STORE_ROWS 0, 2, d, UKR_NBLK
+	b	.Lfinalize
 
 .Lstore_cm:
 	cbz	x16, .Lstore_cm_b0
+	cbz	x17, .Lstore_cm_b1
 	SME_STORE_COLS 0, d, UKR_NBLK
 	b	.Lfinalize
 .Lstore_cm_b0:
 	SME_STORE_COLS 1, d, UKR_NBLK
 	b	.Lfinalize
+.Lstore_cm_b1:
+	SME_STORE_COLS 2, d, UKR_NBLK
+	b	.Lfinalize
 
 #if SME_FA64
-.Lstore_gs:				// scalar+vector addressing (needs FA64)
+.Lstore_gs:
 	SME_GS_OFFSETS UKR_NBLK, d
 	cbz	x16, .Lstore_gs_b0
 	SME_STORE_ROWS 1, 0, d, UKR_NBLK
