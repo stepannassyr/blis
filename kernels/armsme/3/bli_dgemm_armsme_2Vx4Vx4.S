@@ -11,9 +11,15 @@
 
   Requires FEAT_SME + FEAT_SME_F64F64.  See the header for SME_FA64.
 
+  PSTATE.SM / PSTATE.ZA ownership is decided by the BLIS_SME_HOIST_* build
+  variant and handled entirely inside UKR_SME_INIT / UKR_SME_DEINIT.  Those
+  two macros also own the d8-d15 spill and the rs_c / cs_c stack-argument
+  loads, since the argument offsets depend on the spill size.
+
   ARG REGISTERS (BLIS gemm ukr signature)
     x0 m  x1 n  x2 k  x3 &alpha  x4 a  x5 b  x6 &beta  x7 c
     [sp,#0] rs_c  [sp,#8] cs_c  [sp,#16] data  [sp,#24] cntx
+  After UKR_SME_INIT the same four sit at .LSME_SPILL + {0,8,16,24}.
 =============================================================================*/
 
 #ifndef SME_FA64
@@ -38,19 +44,7 @@
 bli_dgemm_armsme_2Vx4Vx4:
 
 	// ===== FUNC INTRO =======================================================
-	stp	d8,  d9,  [sp, #-64]!	// SMSTART/SMSTOP zero Z, so spill d8-d15
-	stp	d10, d11, [sp, #16]
-	stp	d12, d13, [sp, #32]
-	stp	d14, d15, [sp, #48]
-
-	ldr	x9,  [sp, #64]		// rs_c
-	ldr	x10, [sp, #72]		// cs_c
-	lsl	x9,  x9,  #.LSME_ESH	// -> bytes
-	lsl	x10, x10, #.LSME_ESH
-
-	smstart				// PSTATE.SM=1, PSTATE.ZA=1 (ZA zeroed)
-	ptrue	p0.d
-	SME_CNT	x14, d			// x14 = SVL_D
+	UKR_SME_INIT d			// spill, rs_c/cs_c, PSTATE, p0, x14=SVL_D
 
 	// ===== SIZE / VARIANT DISPATCH ==========================================
 	lsl	x11, x14, #1		// MR = 2*SVL_D
@@ -69,7 +63,6 @@ bli_dgemm_armsme_2Vx4Vx4:
 
 	// ===== MAIN LOOP ========================================================
 .Lmain:
-	zero	{za}			// (redundant after SMSTART, kept explicit)
 	SME_KLOOP d, UKR_NBLK, UKR_NK
 
 	// ===== SCALE + STOREBLOCK ===============================================
@@ -116,17 +109,13 @@ bli_dgemm_armsme_2Vx4Vx4:
 #endif
 
 	// ===== TAIL =============================================================
-.Ltail:
+.Ltail:					// SME_TAIL zeroes tile 0 per subtile, so
+					// it needs no accumulator clear from here
 	SME_TAIL d, UKR_NBLK
 
 	// ===== FINALIZE / FUNC OUTRO ============================================
 .Lfinalize:
-	smstop				// PSTATE.SM=0, PSTATE.ZA=0
-	ldp	d8,  d9,  [sp, #0]
-	ldp	d10, d11, [sp, #16]
-	ldp	d12, d13, [sp, #32]
-	ldp	d14, d15, [sp, #48]
-	add	sp, sp, #64
+	UKR_SME_DEINIT			// PSTATE, restore d8-d15, pop
 	ret
 
 	.size	bli_dgemm_armsme_2Vx4Vx4, .-bli_dgemm_armsme_2Vx4Vx4

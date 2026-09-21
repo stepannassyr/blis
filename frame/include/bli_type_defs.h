@@ -1189,6 +1189,10 @@ typedef struct auxinfo_s
 	const void* a_next;
 	const void* b_next;
 
+    // Same as a/b_next for for a longer range prefetch
+	const void* a_future;
+	const void* b_future;
+
 	// The imaginary strides of A and B.
 	inc_t is_a;
 	inc_t is_b;

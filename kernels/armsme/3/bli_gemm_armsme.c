@@ -96,28 +96,71 @@ void bli_dgemm_armsme_2Vx4Vx4_ct
 
 #endif
 
-/*-----------------------------------------------------------------------------
-  cntx registration sketch -- in your bli_cntx_init_<arch>.c, after the
-  runtime SME probe:
 
-      const dim_t svl_d = bli_sme_svl_bytes() / sizeof( double );
+// prefetching variants
 
-      bli_cntx_set_ukrs( cntx,
-        BLIS_GEMM_UKR, BLIS_DOUBLE, bli_dgemm_armsme_2Vx4Vx4,
-        BLIS_VA_END );
+/* SVL is fixed for the life of the process; rdsvl per ukr call is wasteful.
+   The race is benign -- every thread computes the same value. */
+static dim_t bli_armsme_nr_d = 0;
 
-      bli_cntx_set_ukr_prefs( cntx,
-        BLIS_GEMM_UKR_ROW_PREF, BLIS_DOUBLE, TRUE,   // horizontal-slice store
-        BLIS_VA_END );
+void bli_dgemm_armsme_2Vx4Vx4_pf
+     (
+       dim_t m, dim_t n, dim_t k,
+       const void* alpha, const void* a, const void* b, const void* beta,
+       void* c, inc_t rs_c, inc_t cs_c,
+       const auxinfo_t* data, const cntx_t* cntx
+     )
+{
+	dim_t nr = bli_armsme_nr_d;
+	if ( nr == 0 ) { nr = bli_dgemm_armsme_2Vx4Vx4_nr(); bli_armsme_nr_d = nr; }
 
-      bli_blksz_init_easy( &blkszs[ BLIS_MR ], -1, 2*svl_d, -1, -1 );
-      bli_blksz_init_easy( &blkszs[ BLIS_NR ], -1, 4*svl_d, -1, -1 );
+	/* One line per page: warm the TLB and start the hardware streams.  A
+	   k_c x n_r panel is ~100 KiB at SVL=512b -- far too large to pull in
+	   with prfm, and that is not the goal. */
+	const char*  bf    = bli_auxinfo_future_b( data );
+	const size_t panel = ( size_t )k * ( size_t )nr * sizeof( double );
 
-  Runtime gate (Linux):
-      unsigned long h2 = getauxval( AT_HWCAP2 );
-      h2 & HWCAP2_SME          -> SME present
-      h2 & HWCAP2_SME_F64F64   -> REQUIRED by the dgemm kernel (fmopa .d);
-                                  the sgemm kernel needs only HWCAP2_SME
-      h2 & HWCAP2_SME_FA64     -> only then may you build the .S with
-                                  -DSME_FA64=1
------------------------------------------------------------------------------*/
+	if ( bf != NULL )
+		for ( size_t off = 0; off < panel; off += 4096 )
+			__builtin_prefetch( bf + off, 0, 3 );
+
+	const char* af = bli_auxinfo_future_a( data );
+	if ( af != NULL )
+		__builtin_prefetch( af, 0, 3 );
+
+	bli_dgemm_armsme_2Vx4Vx4( m, n, k, alpha, a, b, beta,
+	                          c, rs_c, cs_c, data, cntx );
+}
+
+/* SVL is fixed for the life of the process; rdsvl per ukr call is wasteful.
+   The race is benign -- every thread computes the same value. */
+static dim_t bli_armsme_nr_s = 0;
+
+void bli_sgemm_armsme_2Vx2Vx4_pf
+     (
+       dim_t m, dim_t n, dim_t k,
+       const void* alpha, const void* a, const void* b, const void* beta,
+       void* c, inc_t rs_c, inc_t cs_c,
+       const auxinfo_t* data, const cntx_t* cntx
+     )
+{
+	dim_t nr = bli_armsme_nr_s;
+	if ( nr == 0 ) { nr = bli_sgemm_armsme_2Vx2Vx4_nr(); bli_armsme_nr_s = nr; }
+
+	/* One line per page: warm the TLB and start the hardware streams.  A
+	   k_c x n_r panel is ~100 KiB at SVL=512b -- far too large to pull in
+	   with prfm, and that is not the goal. */
+	const char*  bf    = bli_auxinfo_future_b( data );
+	const size_t panel = ( size_t )k * ( size_t )nr * sizeof( float );
+
+	if ( bf != NULL )
+		for ( size_t off = 0; off < panel; off += 4096 )
+			__builtin_prefetch( bf + off, 0, 3 );
+
+	const char* af = bli_auxinfo_future_a( data );
+	if ( af != NULL )
+		__builtin_prefetch( af, 0, 3 );
+
+	bli_sgemm_armsme_2Vx2Vx4( m, n, k, alpha, a, b, beta,
+	                          c, rs_c, cs_c, data, cntx );
+}

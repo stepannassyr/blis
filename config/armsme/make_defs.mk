@@ -46,8 +46,12 @@ THIS_CONFIG    := armsme
 # general-purpose/configuration-agnostic flags in common.mk. You
 # may specify additional flags here as needed.
 
-# might need to disable FA64 if compiling for apple M4+
-CPPROCFLAGS    := -D_GNU_SOURCE -DSME_FA64=1 -DUSE_LX2_ALLOCATOR
+CPPROCFLAGS    := -D_GNU_SOURCE -DSME_FA64=1 -DUSE_LX2_ALLOCATOR \
+                  -DBLIS_SME_SM_AT=$(ARMSME_SM_AT) \
+                  -DBLIS_SME_ZA_AT=$(ARMSME_ZA_AT)
+ifeq ($(ARMSME_USE_PF_UKR),1)
+CPPROCFLAGS    += -DBLIS_ARMSME_USE_PF_KERNELS
+endif
 CMISCFLAGS     :=
 CPICFLAGS      := -fPIC
 CWARNFLAGS     :=

@@ -64,6 +64,40 @@
 	.altmacro
 
 /*---------------------------------------------------------------------------
+  PSTATE ownership.
+
+  PSTATE.SM and PSTATE.ZA are independent bits, and either may be toggled by
+  the ukr or enabled once further out by bli_gemm_ker_var2.c.  The six
+  BLIS_SME_HOIST_* variants are derived here into two flags; keep this block
+  in sync with the derivation at the top of bli_gemm_ker_var2.c.
+
+  Whatever the ukr does NOT own must already be enabled on entry, or the
+  first access traps.
+---------------------------------------------------------------------------*/
+#ifndef BLIS_SME_SM_AT
+#define BLIS_SME_SM_AT 0
+#endif
+#ifndef BLIS_SME_ZA_AT
+#define BLIS_SME_ZA_AT 0
+#endif
+
+#if BLIS_SME_SM_AT == 0
+#define SME_UKR_OWNS_SM 1
+#else
+#define SME_UKR_OWNS_SM 0
+#endif
+
+#if BLIS_SME_ZA_AT == 0
+#define SME_UKR_OWNS_ZA 1
+#else
+#define SME_UKR_OWNS_ZA 0
+#endif
+
+/* Bytes of callee-saved FP spill that UKR_SME_INIT pushes.  The incoming
+   stack arguments sit above it; see the offsets in UKR_SME_INIT. */
+	.set	.LSME_SPILL,	64
+
+/*---------------------------------------------------------------------------
   Type table.  Call once per kernel before anything else.
 ---------------------------------------------------------------------------*/
 .macro SME_DT_SETUP dt
@@ -190,6 +224,77 @@
 	fmul	z\zc\().\dt, z\zc\().\dt, z25.\dt
 	fmla	z\zc\().\dt, p0/m, z\zacc\().\dt, z24.\dt
   .endif
+.endm
+
+
+/*===========================================================================
+  FUNCTION INTRO / OUTRO
+
+  UKR_SME_INIT dt
+      - spills d8-d15 (SMSTART/SMSTOP zero Z, and v8-v15 low halves are
+        callee-saved under the base PCS regardless of who owns SM)
+      - loads rs_c / cs_c from the incoming stack args and converts to bytes
+      - enters whichever PSTATE bits the ukr owns
+      - clears ZA when it does NOT own ZA, since the tile then persists
+        across calls and FMOPA only accumulates
+      - sets up p0 and x14 = SVL in elements
+
+      On exit: x9 rs_c bytes, x10 cs_c bytes, x14 SVL_<dt>, p0 all-true.
+      Stack args, valid until UKR_SME_DEINIT:
+          [sp, #.LSME_SPILL+0]  rs_c     [sp, #.LSME_SPILL+8]  cs_c
+          [sp, #.LSME_SPILL+16] data     [sp, #.LSME_SPILL+24] cntx
+
+  UKR_SME_DEINIT
+      Mirror image.  Does not emit "ret" -- keep that visible in the kernel.
+
+  Ordering is load-bearing in both directions: the spill must precede
+  SMSTART and the restore must follow SMSTOP, because each transition zeroes
+  the Z registers that d8-d15 alias.
+===========================================================================*/
+.macro UKR_SME_INIT dt
+	stp	d8,  d9,  [sp, #-.LSME_SPILL]!
+	stp	d10, d11, [sp, #16]
+	stp	d12, d13, [sp, #32]
+	stp	d14, d15, [sp, #48]
+
+	ldr	x9,  [sp, #(.LSME_SPILL + 0)]	// rs_c
+	ldr	x10, [sp, #(.LSME_SPILL + 8)]	// cs_c
+	lsl	x9,  x9,  #.LSME_ESH		// -> bytes
+	lsl	x10, x10, #.LSME_ESH
+
+#if SME_UKR_OWNS_SM && SME_UKR_OWNS_ZA
+	smstart					// PSTATE.SM=1, PSTATE.ZA=1 (ZA zeroed)
+#elif SME_UKR_OWNS_SM
+	smstart	sm				// ZA already enabled by the hoist
+#elif SME_UKR_OWNS_ZA
+	smstart	za				// SM already on; ZA zeroed here
+#endif
+
+#if !SME_UKR_OWNS_ZA
+	zero	{za}				// ZA persists across calls, so clear the
+						// accumulator per microtile.  Placed above
+						// the dispatch: redundant for the tail,
+						// which re-zeroes tile 0 itself, but cheap
+						// and robust if the tail ever grows.
+#endif
+
+	ptrue	p0.\dt
+	SME_CNT	x14, \dt			// x14 = SVL_<dt>
+.endm
+
+.macro UKR_SME_DEINIT
+#if SME_UKR_OWNS_SM && SME_UKR_OWNS_ZA
+	smstop					// PSTATE.SM=0, PSTATE.ZA=0
+#elif SME_UKR_OWNS_SM
+	smstop	sm
+#elif SME_UKR_OWNS_ZA
+	smstop	za
+#endif
+	ldp	d8,  d9,  [sp, #0]
+	ldp	d10, d11, [sp, #16]
+	ldp	d12, d13, [sp, #32]
+	ldp	d14, d15, [sp, #48]
+	add	sp, sp, #.LSME_SPILL
 .endm
 
 

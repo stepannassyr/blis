@@ -34,3 +34,5 @@
 
 GEMM_UKR_PROT( double,   d, gemm_armsme_2Vx4Vx4 )
 GEMM_UKR_PROT( float,    s, gemm_armsme_2Vx2Vx4 )
+GEMM_UKR_PROT( double,   d, gemm_armsme_2Vx4Vx4_pf )
+GEMM_UKR_PROT( float,    s, gemm_armsme_2Vx2Vx4_pf )

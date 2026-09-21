@@ -418,6 +418,31 @@ print_usage()
                  do so. (See description of 'tlb' above for an example of
                  this.)
 
+   --armsme-sm-at=WHERE
+
+     Control where Arm SME streaming mode (PSTATE.SM) is entered and left.
+     Valid values for WHERE are 'ukr' (per microkernel call; the default),
+     'ir' (once per 1st loop around the microkernel), or 'jr' (once per 2nd
+     loop). Each SMSTART/SMSTOP pair serializes the pipeline and zeroes the
+     Z and P registers, so hoisting trades a per-call cost for a per-loop
+     one. Only meaningful for the armsme configuration.
+
+   --armsme-za-at=WHERE
+
+     As --armsme-sm-at, but for the ZA state (PSTATE.ZA). Note that the
+     0->1 transition of PSTATE.ZA zeroes the ZA array, which the microkernel
+     needs on every microtile; when ZA is hoisted the microkernel issues an
+     explicit 'zero {za}' instead. Only meaningful for the armsme
+     configuration.
+
+   --armsme-use-pf-ukr
+
+     Register the prefetching armsme microkernel wrappers, which issue
+     long-range prefetches against the a_future/b_future panels before
+     entering the kernel. Distances are set at runtime by
+     BLIS_FUTURE_A_DISTANCE and BLIS_FUTURE_B_DISTANCE. Only meaningful for
+     the armsme configuration.
+
    --disable-trsm-preinversion, --enable-trsm-preinversion
 
                  Disable (enabled by default) pre-inversion of triangular
@@ -3050,6 +3075,11 @@ blis_main()
 	# The method of assigning micropanels to threads in the JR and JR loops.
 	thread_part_jrir='slab'
 
+    # armsme smstart/stop hoisting and whether to use pf kernels
+    armsme_sm_at='ukr'
+	armsme_za_at='ukr'
+	armsme_use_pf_ukr='no'
+
 	# Option variables.
 	quiet_flag=''
 	show_config_list=''
@@ -3255,6 +3285,16 @@ blis_main()
 
 						thread-part-jrir=*)
 							thread_part_jrir=${OPTARG#*=}
+							;;
+
+						armsme-sm-at=*)
+							armsme_sm_at=${OPTARG#*=}
+							;;
+						armsme-za-at=*)
+							armsme_za_at=${OPTARG#*=}
+							;;
+						armsme-use-pf-ukr)
+							armsme_use_pf_ukr='yes'
 							;;
 
 						enable-pba-pools)
@@ -4052,6 +4092,43 @@ blis_main()
 		exit 1
 	fi
 
+	# -- Arm SME PSTATE hoisting -------------------------------------------
+
+	armsme_sm_at_num=0
+	if   [[ ${armsme_sm_at} = ukr ]]; then armsme_sm_at_num=0
+	elif [[ ${armsme_sm_at} = ir  ]]; then armsme_sm_at_num=1
+	elif [[ ${armsme_sm_at} = jr  ]]; then armsme_sm_at_num=2
+	else
+		echo "${script_name}: *** Unsupported value for --armsme-sm-at: ${armsme_sm_at}."
+		echo "${script_name}: *** Expected one of: ukr, ir, jr."
+		exit 1
+	fi
+
+	armsme_za_at_num=0
+	if   [[ ${armsme_za_at} = ukr ]]; then armsme_za_at_num=0
+	elif [[ ${armsme_za_at} = ir  ]]; then armsme_za_at_num=1
+	elif [[ ${armsme_za_at} = jr  ]]; then armsme_za_at_num=2
+	else
+		echo "${script_name}: *** Unsupported value for --armsme-za-at: ${armsme_za_at}."
+		echo "${script_name}: *** Expected one of: ukr, ir, jr."
+		exit 1
+	fi
+
+	armsme_use_pf_ukr_01=0
+	if [[ ${armsme_use_pf_ukr} = yes ]]; then
+		armsme_use_pf_ukr_01=1
+	fi
+
+	# The ir loop sits inside the jr loop, so hoisting a bit to jr while the
+	# other sits at ir is fine (the pairs nest).  What cannot work is a bit
+	# being "hoisted" to a level that does not enclose its user -- which is
+	# impossible here -- so there is nothing further to reject.
+
+	if [[ ${armsme_sm_at} != ukr || ${armsme_za_at} != ukr || \
+	      ${armsme_use_pf_ukr} = yes ]]; then
+		echo "${script_name}: armsme: SM at '${armsme_sm_at}', ZA at '${armsme_za_at}', prefetch ukr: ${armsme_use_pf_ukr}."
+	fi
+
 	# Convert 'yes' and 'no' flags to booleans.
 	if [[ ${enable_pba_pools} = yes ]]; then
 		echo "${script_name}: internal memory pools for packing blocks are enabled."
@@ -4507,6 +4584,9 @@ blis_main()
 	add_config_var enable_jrir_rr            enable_jrir_rr_01
 	add_config_var enable_jrir_slab          enable_jrir_slab_01
 	add_config_var enable_jrir_tlb           enable_jrir_tlb_01
+    add_config_var armsme_sm_at              armsme_sm_at_num
+	add_config_var armsme_za_at              armsme_za_at_num
+	add_config_var armsme_use_pf_ukr         armsme_use_pf_ukr_01
 	add_config_var enable_pba_pools          enable_pba_pools_01
 	add_config_var enable_sba_pools          enable_sba_pools_01
 	add_config_var enable_mem_tracing        enable_mem_tracing_01

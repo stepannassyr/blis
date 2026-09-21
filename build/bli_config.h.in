@@ -99,6 +99,13 @@
 #define BLIS_ENABLE_JRIR_TLB
 #endif
 
+#define BLIS_SME_SM_AT @armsme_sm_at@
+#define BLIS_SME_ZA_AT @armsme_za_at@
+
+#if @armsme_use_pf_ukr@
+#define BLIS_ARMSME_USE_PF_KERNELS
+#endif
+
 #if @enable_pba_pools@
 #define BLIS_ENABLE_PBA_POOLS
 #else

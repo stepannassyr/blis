@@ -74,9 +74,14 @@ void bli_cntx_init_armsme( cntx_t* cntx )
 	  cntx,
 
 	  // level-3
-	  // These are vector-length agnostic kernels. Yet knowing mr is required at runtime.
+
+#if defined BLIS_ARMSME_USE_PF_KERNELS
+	  BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_armsme_2Vx2Vx4_pf,
+	  BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_armsme_2Vx4Vx4_pf,
+#else
 	  BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_armsme_2Vx2Vx4,
 	  BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_armsme_2Vx4Vx4,
+#endif
 
       // level-1m
 	  BLIS_PACKM_KER, BLIS_FLOAT, bli_spackm_sve,
