@@ -458,6 +458,119 @@
       Registers: A -> z0..z(2*nk-1), B -> z(2*nk)..  Loads for step p+2 are
       issued right after the outer products of step p.
 ===========================================================================*/
+/*===========================================================================
+  PREFETCH
+  ---------------------------------------------------------------------------
+  All of this is driven by the UKR_PF_* build parameters that the per-variant
+  include sets from the variant number; see bli_kernels_armsme.h for the
+  encoding.  Policy 0 means "emit nothing", so variant 0 is byte-identical to
+  the kernel from before this machinery existed.
+===========================================================================*/
+
+#define SME_PF_OFF      0
+#define SME_PF_L1KEEP   1
+#define SME_PF_L1STRM   2
+#define SME_PF_L2KEEP   3
+
+.macro SME_PRFD op, xb, off
+  .if \op == SME_PF_L1KEEP
+    prfd    PLDL1KEEP, p0, [\xb, #\off, MUL VL]
+  .elseif \op == SME_PF_L1STRM
+    prfd    PLDL1STRM, p0, [\xb, #\off, MUL VL]
+  .elseif \op == SME_PF_L2KEEP
+    prfd    PLDL2KEEP, p0, [\xb, #\off, MUL VL]
+  .endif
+.endm
+
+/* C is both read and written by the epilogue, and with a write-allocate L1
+   the store needs the line writable anyway, so prefetch for store.        */
+.macro SME_PRFD_ST xb, off
+    prfd    PSTL1KEEP, p0, [\xb, #\off, MUL VL]
+.endm
+
+/* A and B, one loop iteration ahead: A advances 2*nk vectors per iteration,
+   B advances 2*nblk*nk.  PRFD's MUL VL immediate is -32..31; at nk=4,nblk=2
+   that is A 8..15 off x4 and B 16..31 off x5, both in range.  Larger
+   configurations spill onto the second B base (x11 = x5 + 8 VL).         */
+.macro SME_KPREFETCH nblk, nk, pfa, pfb
+  .if \pfa
+    .set    .L_pfi, 0
+    .rept   2*\nk
+    SME_PRFD \pfa, x4, %(2*\nk + .L_pfi)
+    .set    .L_pfi, .L_pfi+1
+    .endr
+  .endif
+  .if \pfb
+    .set    .L_pfi, 0
+    .rept   2*\nblk*\nk
+      .if (2*\nblk*\nk + .L_pfi) < 32
+    SME_PRFD \pfb, x5,  %(2*\nblk*\nk + .L_pfi)
+      .else
+    SME_PRFD \pfb, x11, %(2*\nblk*\nk + .L_pfi - 8)
+      .endif
+    .set    .L_pfi, .L_pfi+1
+    .endr
+  .endif
+.endm
+
+/* The MR x NR block of C, issued between the hot and cooldown k-loops so the
+   lines arrive without sitting through the whole k-loop being evicted.
+   Unit-stride layouts only -- general stride would need a gather prefetch,
+   which is illegal in Streaming SVE mode.  Clobbers x8, x12.             */
+.macro SME_PF_C nblk, nr_log2
+    cmp     x10, #.LSME_ES              // cs_c == 1: rows contiguous
+    b.ne    .Lpfc_cm\@
+    mov     x8, x7
+    lsl     x12, x14, #1                // MR = 2*SVL rows
+.Lpfc_rm\@:
+    .set    .L_pfi, 0
+    .rept   2*\nblk
+    SME_PRFD_ST x8, %.L_pfi
+    .set    .L_pfi, .L_pfi+1
+    .endr
+    add     x8, x8, x9
+    subs    x12, x12, #1
+    b.ne    .Lpfc_rm\@
+    b       .Lpfc_end\@
+.Lpfc_cm\@:
+    cmp     x9, #.LSME_ES               // rs_c == 1: columns contiguous
+    b.ne    .Lpfc_end\@
+    mov     x8, x7
+    lsl     x12, x14, #\nr_log2         // NR columns
+.Lpfc_cl\@:
+    SME_PRFD_ST x8, 0
+    SME_PRFD_ST x8, 1
+    add     x8, x8, x10
+    subs    x12, x12, #1
+    b.ne    .Lpfc_cl\@
+.Lpfc_end\@:
+.endm
+
+/* One L2 prefetch per 4 KiB of the NEXT B micro-panel, plus the head of the
+   next A panel.  This warms the TLB and starts the hardware streams; a
+   k_c x n_r panel is far too large to pull in wholesale and that is not the
+   intent.  auxinfo_t layout: a_future at +32, b_future at +40 (pack_t is
+   8 bytes on LP64).  Clobbers x8, x12, x13.                              */
+.macro SME_PF_FUTURE nr_log2
+    ldr     x8,  [sp, #(.LSME_SPILL + 16)]  // const auxinfo_t* data
+    cbz     x8,  .Lpff_end\@
+    ldr     x12, [x8, #40]                  // b_future
+    cbz     x12, .Lpff_a\@
+    lsl     x13, x14, #\nr_log2             // NR elements
+    mul     x13, x13, x2                    // * k
+    lsl     x13, x13, #.LSME_ESH            // -> bytes
+.Lpff_b\@:
+    prfm    PLDL2KEEP, [x12]
+    add     x12, x12, #4096
+    subs    x13, x13, #4096
+    b.gt    .Lpff_b\@
+.Lpff_a\@:
+    ldr     x12, [x8, #32]                  // a_future
+    cbz     x12, .Lpff_end\@
+    prfm    PLDL2KEEP, [x12]
+.Lpff_end\@:
+.endm
+
 .macro SME_KLOADS p, dt, nblk, nk
     SME_LD %(2*\p),   p0, x4, %(2*\p),   \dt        // A, row half 0
     SME_LD %(2*\p+1), p0, x4, %(2*\p+1), \dt        // A, row half 1
@@ -484,7 +597,28 @@
     .endr
 .endm
 
-.macro SME_KLOOP dt, nblk, nk
+.macro SME_KBODY dt, nblk, nk, pfa, pfb
+    SME_KLOADS 0, \dt, \nblk, \nk
+    .if \nk > 1
+    SME_KLOADS 1, \dt, \nblk, \nk
+    .endif
+    .set    .L_kp, 0
+    .rept   \nk
+    SME_KFMOPA %.L_kp, \dt, \nblk, \nk
+      .if (.L_kp+2) < \nk
+    SME_KLOADS %(.L_kp+2), \dt, \nblk, \nk
+      .endif
+      .set  .L_kp, .L_kp+1
+    .endr
+    SME_KPREFETCH \nblk, \nk, \pfa, \pfb
+    addvl   x4, x4, #(2*\nk)
+    addvl   x5, x5, #(2*\nblk*\nk)
+    .if (2*\nblk*\nk) > 8
+    addvl   x11, x11, #(2*\nblk*\nk)
+    .endif
+.endm
+
+.macro SME_KLOOP dt, nblk, nk, pfa, pfb, pfc, nr_log2
     .if (2*\nk + 2*\nblk*\nk) > 32
       .error "SME_KLOOP: k-unroll x nblk needs more than 32 z registers"
     .endif
@@ -510,26 +644,27 @@
     and x2, x2, #(\nk-1)            // k % nk
     .endif
     cbz x13, 1f
-0:  // ---- main loop, \nk k-steps ----------------------------------------
-    SME_KLOADS 0, \dt, \nblk, \nk
-    .if \nk > 1
-    SME_KLOADS 1, \dt, \nblk, \nk
-    .endif
-    .set    .L_kp, 0
-    .rept   \nk
-    SME_KFMOPA %.L_kp, \dt, \nblk, \nk
-      .if (.L_kp+2) < \nk
-    SME_KLOADS %(.L_kp+2), \dt, \nblk, \nk
-      .endif
-      .set  .L_kp, .L_kp+1
-    .endr
-    addvl   x4, x4, #(2*\nk)
-    addvl   x5, x5, #(2*\nblk*\nk)
-    .if (2*\nblk*\nk) > 8
-    addvl   x11, x11, #(2*\nblk*\nk)
-    .endif
+  .if \pfc
+    // ---- hot loop, then C prefetch, then \nk-step cooldown --------------
+    // x15 = distance in loop iterations, >= 1 (clamped in bli_cntx_init).
+    cmp     x13, x15
+    b.le    5f                  // too few iterations for a hot phase
+    sub     x13, x13, x15
+0:  SME_KBODY \dt, \nblk, \nk, \pfa, \pfb
     subs    x13, x13, #1
     b.ne    0b
+    mov     x13, x15
+    cbz     x13, 1f             // defensive: dist == 0 would underflow below
+5:  SME_PF_C \nblk, \nr_log2
+6:  SME_KBODY \dt, \nblk, \nk, \pfa, \pfb
+    subs    x13, x13, #1
+    b.ne    6b
+  .else
+0:  // ---- main loop, \nk k-steps ----------------------------------------
+    SME_KBODY \dt, \nblk, \nk, \pfa, \pfb
+    subs    x13, x13, #1
+    b.ne    0b
+  .endif
 1:  // ---- k remainder ---------------------------------------------------
     .if \nk > 1
     cbz x2, 2f

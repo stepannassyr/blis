@@ -36,6 +36,19 @@
 
 #include "../../kernels/armsme/bli_sme_utils.h"
 
+// Hot/cooldown split point for the pf_c kernel variants, in k-loop iterations
+// from the end.  Read directly by the assembly (adrp/ldr), so it must be
+// PC-relative -- hence the hidden visibility -- and must never be 0, or the
+// cooldown loop counter underflows.
+__attribute__((visibility("hidden")))
+int32_t bli_armsme_pf_c_dist = 2;
+
+// Map a BLIS_ARMSME_UKR_VARIANT value onto the built kernels.  Entries left
+// NULL are bit patterns that are encodable but not built (pf policy 3); they
+// fall back to variant 0.
+#define ARMSME_NUM_VARIANTS 64
+
+
 void bli_cntx_init_armsme( cntx_t* cntx )
 {
 	// Set default kernel blocksizes and functions.
@@ -68,6 +81,96 @@ void bli_cntx_init_armsme( cntx_t* cntx )
 
 
 
+	// ---- runtime micro-kernel variant selection --------------------------
+	// See bli_kernels_armsme.h for the bit layout of BLIS_ARMSME_UKR_VARIANT.
+	static gemm_ukr_ft d_variants[ ARMSME_NUM_VARIANTS ] = {
+		[  0 ] = bli_dgemm_armsme_2Vx4Vx4_v0,
+		[  1 ] = bli_dgemm_armsme_2Vx4Vx4_v1,
+		[  2 ] = bli_dgemm_armsme_2Vx4Vx4_v2,
+		[  3 ] = bli_dgemm_armsme_2Vx4Vx4_v3,
+		[  4 ] = bli_dgemm_armsme_2Vx4Vx4_v4,
+		[  5 ] = bli_dgemm_armsme_2Vx4Vx4_v5,
+		[  8 ] = bli_dgemm_armsme_2Vx4Vx4_v8,
+		[  9 ] = bli_dgemm_armsme_2Vx4Vx4_v9,
+		[ 10 ] = bli_dgemm_armsme_2Vx4Vx4_v10,
+		[ 11 ] = bli_dgemm_armsme_2Vx4Vx4_v11,
+		[ 12 ] = bli_dgemm_armsme_2Vx4Vx4_v12,
+		[ 13 ] = bli_dgemm_armsme_2Vx4Vx4_v13,
+		[ 16 ] = bli_dgemm_armsme_2Vx4Vx4_v16,
+		[ 17 ] = bli_dgemm_armsme_2Vx4Vx4_v17,
+		[ 18 ] = bli_dgemm_armsme_2Vx4Vx4_v18,
+		[ 19 ] = bli_dgemm_armsme_2Vx4Vx4_v19,
+		[ 20 ] = bli_dgemm_armsme_2Vx4Vx4_v20,
+		[ 21 ] = bli_dgemm_armsme_2Vx4Vx4_v21,
+		[ 32 ] = bli_dgemm_armsme_2Vx4Vx4_v32,
+		[ 33 ] = bli_dgemm_armsme_2Vx4Vx4_v33,
+		[ 34 ] = bli_dgemm_armsme_2Vx4Vx4_v34,
+		[ 35 ] = bli_dgemm_armsme_2Vx4Vx4_v35,
+		[ 36 ] = bli_dgemm_armsme_2Vx4Vx4_v36,
+		[ 37 ] = bli_dgemm_armsme_2Vx4Vx4_v37,
+		[ 40 ] = bli_dgemm_armsme_2Vx4Vx4_v40,
+		[ 41 ] = bli_dgemm_armsme_2Vx4Vx4_v41,
+		[ 42 ] = bli_dgemm_armsme_2Vx4Vx4_v42,
+		[ 43 ] = bli_dgemm_armsme_2Vx4Vx4_v43,
+		[ 44 ] = bli_dgemm_armsme_2Vx4Vx4_v44,
+		[ 45 ] = bli_dgemm_armsme_2Vx4Vx4_v45,
+		[ 48 ] = bli_dgemm_armsme_2Vx4Vx4_v48,
+		[ 49 ] = bli_dgemm_armsme_2Vx4Vx4_v49,
+		[ 50 ] = bli_dgemm_armsme_2Vx4Vx4_v50,
+		[ 51 ] = bli_dgemm_armsme_2Vx4Vx4_v51,
+		[ 52 ] = bli_dgemm_armsme_2Vx4Vx4_v52,
+		[ 53 ] = bli_dgemm_armsme_2Vx4Vx4_v53
+	};
+	static gemm_ukr_ft s_variants[ ARMSME_NUM_VARIANTS ] = {
+		[  0 ] = bli_sgemm_armsme_2Vx2Vx4_v0,
+		[  1 ] = bli_sgemm_armsme_2Vx2Vx4_v1,
+		[  2 ] = bli_sgemm_armsme_2Vx2Vx4_v2,
+		[  3 ] = bli_sgemm_armsme_2Vx2Vx4_v3,
+		[  4 ] = bli_sgemm_armsme_2Vx2Vx4_v4,
+		[  5 ] = bli_sgemm_armsme_2Vx2Vx4_v5,
+		[  8 ] = bli_sgemm_armsme_2Vx2Vx4_v8,
+		[  9 ] = bli_sgemm_armsme_2Vx2Vx4_v9,
+		[ 10 ] = bli_sgemm_armsme_2Vx2Vx4_v10,
+		[ 11 ] = bli_sgemm_armsme_2Vx2Vx4_v11,
+		[ 12 ] = bli_sgemm_armsme_2Vx2Vx4_v12,
+		[ 13 ] = bli_sgemm_armsme_2Vx2Vx4_v13,
+		[ 16 ] = bli_sgemm_armsme_2Vx2Vx4_v16,
+		[ 17 ] = bli_sgemm_armsme_2Vx2Vx4_v17,
+		[ 18 ] = bli_sgemm_armsme_2Vx2Vx4_v18,
+		[ 19 ] = bli_sgemm_armsme_2Vx2Vx4_v19,
+		[ 20 ] = bli_sgemm_armsme_2Vx2Vx4_v20,
+		[ 21 ] = bli_sgemm_armsme_2Vx2Vx4_v21,
+		[ 32 ] = bli_sgemm_armsme_2Vx2Vx4_v32,
+		[ 33 ] = bli_sgemm_armsme_2Vx2Vx4_v33,
+		[ 34 ] = bli_sgemm_armsme_2Vx2Vx4_v34,
+		[ 35 ] = bli_sgemm_armsme_2Vx2Vx4_v35,
+		[ 36 ] = bli_sgemm_armsme_2Vx2Vx4_v36,
+		[ 37 ] = bli_sgemm_armsme_2Vx2Vx4_v37,
+		[ 40 ] = bli_sgemm_armsme_2Vx2Vx4_v40,
+		[ 41 ] = bli_sgemm_armsme_2Vx2Vx4_v41,
+		[ 42 ] = bli_sgemm_armsme_2Vx2Vx4_v42,
+		[ 43 ] = bli_sgemm_armsme_2Vx2Vx4_v43,
+		[ 44 ] = bli_sgemm_armsme_2Vx2Vx4_v44,
+		[ 45 ] = bli_sgemm_armsme_2Vx2Vx4_v45,
+		[ 48 ] = bli_sgemm_armsme_2Vx2Vx4_v48,
+		[ 49 ] = bli_sgemm_armsme_2Vx2Vx4_v49,
+		[ 50 ] = bli_sgemm_armsme_2Vx2Vx4_v50,
+		[ 51 ] = bli_sgemm_armsme_2Vx2Vx4_v51,
+		[ 52 ] = bli_sgemm_armsme_2Vx2Vx4_v52,
+		[ 53 ] = bli_sgemm_armsme_2Vx2Vx4_v53
+	};
+
+	dim_t ukr_variant = bli_env_get_var( "BLIS_ARMSME_UKR_VARIANT", 0 );
+	if ( ukr_variant < 0 || ukr_variant >= ARMSME_NUM_VARIANTS ||
+	     d_variants[ ukr_variant ] == NULL )
+		ukr_variant = 0;
+
+	const dim_t pf_c_dist = bli_env_get_var( "BLIS_ARMSME_PF_C_DIST", 2 );
+	bli_armsme_pf_c_dist = ( int32_t )( pf_c_dist < 1 ? 1 : pf_c_dist );
+
+	gemm_ukr_ft d_gemm_ukr = d_variants[ ukr_variant ];
+	gemm_ukr_ft s_gemm_ukr = s_variants[ ukr_variant ];
+
 	// Update the context with optimized native gemm micro-kernels.
 	bli_cntx_set_ukrs
 	(
@@ -75,13 +178,8 @@ void bli_cntx_init_armsme( cntx_t* cntx )
 
 	  // level-3
 
-#if defined BLIS_ARMSME_USE_PF_KERNELS
-	  BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_armsme_2Vx2Vx4_pf,
-	  BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_armsme_2Vx4Vx4_pf,
-#else
-	  BLIS_GEMM_UKR, BLIS_FLOAT,    bli_sgemm_armsme_2Vx2Vx4,
-	  BLIS_GEMM_UKR, BLIS_DOUBLE,   bli_dgemm_armsme_2Vx4Vx4,
-#endif
+	  BLIS_GEMM_UKR, BLIS_FLOAT,    s_gemm_ukr,
+	  BLIS_GEMM_UKR, BLIS_DOUBLE,   d_gemm_ukr,
 
       // level-1m
 	  BLIS_PACKM_KER, BLIS_FLOAT, bli_spackm_sve,

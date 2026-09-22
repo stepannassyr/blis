@@ -37,117 +37,232 @@
     SME_DT_SETUP s
 
     .text
+
+/* One instantiation per prefetch variant.  36 of the 64 bit patterns are
+   built; the rest are reserved (pf policy 3 = L2KEEP for A/B).  See
+   bli_kernels_armsme.h for the encoding and bli_cntx_init_armsme.c for
+   the BLIS_ARMSME_UKR_VARIANT lookup. */
+
+#define UKR_VARIANT 0
+#define UKR_SUFFIX  v0
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 1
+#define UKR_SUFFIX  v1
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 2
+#define UKR_SUFFIX  v2
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 3
+#define UKR_SUFFIX  v3
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 4
+#define UKR_SUFFIX  v4
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 5
+#define UKR_SUFFIX  v5
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 8
+#define UKR_SUFFIX  v8
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 9
+#define UKR_SUFFIX  v9
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 10
+#define UKR_SUFFIX  v10
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 11
+#define UKR_SUFFIX  v11
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 12
+#define UKR_SUFFIX  v12
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 13
+#define UKR_SUFFIX  v13
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 16
+#define UKR_SUFFIX  v16
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 17
+#define UKR_SUFFIX  v17
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 18
+#define UKR_SUFFIX  v18
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 19
+#define UKR_SUFFIX  v19
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 20
+#define UKR_SUFFIX  v20
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 21
+#define UKR_SUFFIX  v21
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 32
+#define UKR_SUFFIX  v32
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 33
+#define UKR_SUFFIX  v33
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 34
+#define UKR_SUFFIX  v34
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 35
+#define UKR_SUFFIX  v35
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 36
+#define UKR_SUFFIX  v36
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 37
+#define UKR_SUFFIX  v37
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 40
+#define UKR_SUFFIX  v40
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 41
+#define UKR_SUFFIX  v41
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 42
+#define UKR_SUFFIX  v42
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 43
+#define UKR_SUFFIX  v43
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 44
+#define UKR_SUFFIX  v44
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 45
+#define UKR_SUFFIX  v45
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 48
+#define UKR_SUFFIX  v48
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 49
+#define UKR_SUFFIX  v49
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 50
+#define UKR_SUFFIX  v50
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 51
+#define UKR_SUFFIX  v51
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 52
+#define UKR_SUFFIX  v52
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 53
+#define UKR_SUFFIX  v53
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+/* Variant 0 is the plain kernel; keep the historical symbol as an alias so
+   the _pf wrappers in bli_gemm_armsme.c and any external reference still
+   resolve. */
     .global bli_sgemm_armsme_2Vx2Vx4
-    .type   bli_sgemm_armsme_2Vx2Vx4, %function
+    .set    bli_sgemm_armsme_2Vx2Vx4, bli_sgemm_armsme_2Vx2Vx4_v0
 
-bli_sgemm_armsme_2Vx2Vx4:
-
-    // ===== FUNC INTRO =======================================================
-    UKR_SME_INIT s          // spill, rs_c/cs_c, PSTATE, p0, x14=SVL_S
-
-    // ===== SIZE / VARIANT DISPATCH ==========================================
-    lsl x11, x14, #1        // MR = 2*SVL_S
-    cmp x0, x11
-    b.lt    .Ltail
-    lsl x11, x14, #UKR_NR_LOG2  // NR = 2*SVL_S
-    cmp x1, x11
-    b.lt    .Ltail          // m<MR or n<NR -> predicated tail kernel
-#if !SME_FA64
-    cmp x10, #.LSME_ES      // cs_c == 1 ?
-    b.eq    .Lmain
-    cmp x9, #.LSME_ES       // rs_c == 1 ?
-    b.eq    .Lmain
-    b   .Ltail          // general stride w/o FA64: use tail path
-#endif
-
-    // ===== MAIN LOOP ========================================================
-.Lmain:
-    // The epilogue's branch conditions are computed here because x3/x6 are
-    // reused as ZA pointers later; none of x0/x16/x17/z24/z25 is touched by
-    // SME_KLOOP.
-    SME_LD1R 24, x3, s      // alpha  (only the Z-register paths use it)
-    SME_LD1R 25, x6, s      // beta
-    SME_BETA_ZERO_TEST 16, x6, s    // x16 == 0 <=> beta  == +-0.0
-    SME_FP_ONE_TEST    17, x6, s    // x17 == 0 <=> beta  == 1.0
-    SME_FP_ONE_TEST     0, x3, s    // x0  == 0 <=> alpha == 1.0   (m is dead)
-
-    SME_KLOOP s, UKR_NBLK, UKR_NK
-
-    // ===== SCALE + STOREBLOCK ===============================================
-    // ZA-direct store, for alpha==1 && beta==0 && unit stride only: ZA holds
-    // the finished result, so it goes to memory with no Z register in the path.
-    //
-    // There is deliberately no beta==1 counterpart.  That would require
-    // preloading C into ZA before the k-loop, and the k-loop evicts C from L1
-    // long before the store, so the cache lines get paid for twice.
-    // SME_ZA_ROWS/COLS still take a dir argument and dir=1 (C -> ZA) is verified
-    // working if this is ever worth retrying on
-    // hardware with a larger L1 or a cheaper ZA port.
-    cbnz    x0,  .Lstore_gen        // alpha != 1
-    cbnz    x16, .Lstore_gen        // beta  != 0
-    SME_IF_STRIDED .Lstore_gen      // general stride
-    cmp x10, #.LSME_ES
-    b.ne    3f
-    SME_ZA_ROWS 0, s, UKR_NBLK      // ZA -> C, horizontal slices
-    b   .Lfinalize
-3:  SME_ZA_COLS 0, s, UKR_NBLK      // ZA -> C, vertical slices
-    b   .Lfinalize
-
-.Lstore_gen:
-    cmp x10, #.LSME_ES      // ---- cs_c == 1: row-major C ----------
-    b.eq    .Lstore_rm
-#if SME_FA64
-    cmp x9, #.LSME_ES       // ---- rs_c == 1: col-major C ----------
-    b.eq    .Lstore_cm
-    b   .Lstore_gs      // ---- general stride ------------------
-#else
-    b   .Lstore_cm
-#endif
-
-.Lstore_rm:
-    cbz x16, .Lstore_rm_b0
-    cbz x17, .Lstore_rm_b1
-    SME_STORE_ROWS 0, 0, s, UKR_NBLK
-    b   .Lfinalize
-.Lstore_rm_b0:
-    SME_STORE_ROWS 0, 1, s, UKR_NBLK
-    b   .Lfinalize
-.Lstore_rm_b1:
-    SME_STORE_ROWS 0, 2, s, UKR_NBLK
-    b   .Lfinalize
-
-.Lstore_cm:
-    cbz x16, .Lstore_cm_b0
-    cbz x17, .Lstore_cm_b1
-    SME_STORE_COLS 0, s, UKR_NBLK
-    b   .Lfinalize
-.Lstore_cm_b0:
-    SME_STORE_COLS 1, s, UKR_NBLK
-    b   .Lfinalize
-.Lstore_cm_b1:
-    SME_STORE_COLS 2, s, UKR_NBLK
-    b   .Lfinalize
-
-#if SME_FA64
-.Lstore_gs:
-    SME_GS_OFFSETS UKR_NBLK, s
-    cbz x16, .Lstore_gs_b0
-    SME_STORE_ROWS 1, 0, s, UKR_NBLK
-    b   .Lfinalize
-.Lstore_gs_b0:
-    SME_STORE_ROWS 1, 1, s, UKR_NBLK
-    b   .Lfinalize
-#endif
-
-    // ===== TAIL =============================================================
-.Ltail:                 // SME_TAIL zeroes tile 0 per subtile, so
-                    // it needs no accumulator clear from here
-    SME_TAIL s, UKR_NBLK
-
-    // ===== FINALIZE / FUNC OUTRO ============================================
-.Lfinalize:
-    UKR_SME_DEINIT          // PSTATE, restore d8-d15, pop
-    ret
-
-    .size   bli_sgemm_armsme_2Vx2Vx4, .-bli_sgemm_armsme_2Vx2Vx4
     .section    .note.GNU-stack,"",%progbits
