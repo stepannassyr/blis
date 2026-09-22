@@ -80,18 +80,18 @@ void bli_dgemm_armsme_2Vx4Vx4_ct
        const auxinfo_t* data, const cntx_t* cntx
      )
 {
-	const dim_t mr = bli_dgemm_armsme_2Vx4Vx4_mr();
-	const dim_t nr = bli_dgemm_armsme_2Vx4Vx4_nr();
+    const dim_t mr = bli_dgemm_armsme_2Vx4Vx4_mr();
+    const dim_t nr = bli_dgemm_armsme_2Vx4Vx4_nr();
 
-	uint64_t rs_c = rs_c0;
-	uint64_t cs_c = cs_c0;
+    uint64_t rs_c = rs_c0;
+    uint64_t cs_c = cs_c0;
 
-	GEMM_UKR_SETUP_CT_ANY( d, mr, nr, false )
+    GEMM_UKR_SETUP_CT_ANY( d, mr, nr, false )
 
-	bli_dgemm_armsme_2Vx4Vx4( m, n, k, alpha, a, b, beta,
-	                               c, rs_c, cs_c, data, cntx );
+    bli_dgemm_armsme_2Vx4Vx4( m, n, k, alpha, a, b, beta,
+                                   c, rs_c, cs_c, data, cntx );
 
-	GEMM_UKR_FLUSH_CT( d )
+    GEMM_UKR_FLUSH_CT( d )
 }
 
 #endif
@@ -111,25 +111,25 @@ void bli_dgemm_armsme_2Vx4Vx4_pf
        const auxinfo_t* data, const cntx_t* cntx
      )
 {
-	dim_t nr = bli_armsme_nr_d;
-	if ( nr == 0 ) { nr = bli_dgemm_armsme_2Vx4Vx4_nr(); bli_armsme_nr_d = nr; }
+    dim_t nr = bli_armsme_nr_d;
+    if ( nr == 0 ) { nr = bli_dgemm_armsme_2Vx4Vx4_nr(); bli_armsme_nr_d = nr; }
 
-	/* One line per page: warm the TLB and start the hardware streams.  A
-	   k_c x n_r panel is ~100 KiB at SVL=512b -- far too large to pull in
-	   with prfm, and that is not the goal. */
-	const char*  bf    = bli_auxinfo_future_b( data );
-	const size_t panel = ( size_t )k * ( size_t )nr * sizeof( double );
+    /* One line per page: warm the TLB and start the hardware streams.  A
+       k_c x n_r panel is ~100 KiB at SVL=512b -- far too large to pull in
+       with prfm, and that is not the goal. */
+    const char*  bf    = bli_auxinfo_future_b( data );
+    const size_t panel = ( size_t )k * ( size_t )nr * sizeof( double );
 
-	if ( bf != NULL )
-		for ( size_t off = 0; off < panel; off += 4096 )
-			__builtin_prefetch( bf + off, 0, 3 );
+    if ( bf != NULL )
+        for ( size_t off = 0; off < panel; off += 4096 )
+            __builtin_prefetch( bf + off, 0, 3 );
 
-	const char* af = bli_auxinfo_future_a( data );
-	if ( af != NULL )
-		__builtin_prefetch( af, 0, 3 );
+    const char* af = bli_auxinfo_future_a( data );
+    if ( af != NULL )
+        __builtin_prefetch( af, 0, 3 );
 
-	bli_dgemm_armsme_2Vx4Vx4( m, n, k, alpha, a, b, beta,
-	                          c, rs_c, cs_c, data, cntx );
+    bli_dgemm_armsme_2Vx4Vx4( m, n, k, alpha, a, b, beta,
+                              c, rs_c, cs_c, data, cntx );
 }
 
 /* SVL is fixed for the life of the process; rdsvl per ukr call is wasteful.
@@ -144,23 +144,23 @@ void bli_sgemm_armsme_2Vx2Vx4_pf
        const auxinfo_t* data, const cntx_t* cntx
      )
 {
-	dim_t nr = bli_armsme_nr_s;
-	if ( nr == 0 ) { nr = bli_sgemm_armsme_2Vx2Vx4_nr(); bli_armsme_nr_s = nr; }
+    dim_t nr = bli_armsme_nr_s;
+    if ( nr == 0 ) { nr = bli_sgemm_armsme_2Vx2Vx4_nr(); bli_armsme_nr_s = nr; }
 
-	/* One line per page: warm the TLB and start the hardware streams.  A
-	   k_c x n_r panel is ~100 KiB at SVL=512b -- far too large to pull in
-	   with prfm, and that is not the goal. */
-	const char*  bf    = bli_auxinfo_future_b( data );
-	const size_t panel = ( size_t )k * ( size_t )nr * sizeof( float );
+    /* One line per page: warm the TLB and start the hardware streams.  A
+       k_c x n_r panel is ~100 KiB at SVL=512b -- far too large to pull in
+       with prfm, and that is not the goal. */
+    const char*  bf    = bli_auxinfo_future_b( data );
+    const size_t panel = ( size_t )k * ( size_t )nr * sizeof( float );
 
-	if ( bf != NULL )
-		for ( size_t off = 0; off < panel; off += 4096 )
-			__builtin_prefetch( bf + off, 0, 3 );
+    if ( bf != NULL )
+        for ( size_t off = 0; off < panel; off += 4096 )
+            __builtin_prefetch( bf + off, 0, 3 );
 
-	const char* af = bli_auxinfo_future_a( data );
-	if ( af != NULL )
-		__builtin_prefetch( af, 0, 3 );
+    const char* af = bli_auxinfo_future_a( data );
+    if ( af != NULL )
+        __builtin_prefetch( af, 0, 3 );
 
-	bli_sgemm_armsme_2Vx2Vx4( m, n, k, alpha, a, b, beta,
-	                          c, rs_c, cs_c, data, cntx );
+    bli_sgemm_armsme_2Vx2Vx4( m, n, k, alpha, a, b, beta,
+                              c, rs_c, cs_c, data, cntx );
 }

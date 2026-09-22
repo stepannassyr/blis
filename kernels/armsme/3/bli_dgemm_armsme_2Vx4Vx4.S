@@ -26,129 +26,129 @@
 #define SME_FA64 0
 #endif
 
-#define UKR_NBLK	2		/* NR = 2*nblk*SVL                    */
-#define UKR_NK		4		/* k-unroll                           */
-#define UKR_NR_LOG2	2		/* NR = SVL << UKR_NR_LOG2            */
+#define UKR_NBLK    2       /* NR = 2*nblk*SVL                    */
+#define UKR_NK      4       /* k-unroll                           */
+#define UKR_NR_LOG2 2       /* NR = SVL << UKR_NR_LOG2            */
 
-	/* binutils < 2.39 spells this "+sme-f64" */
-	.arch	armv9-a+sme+sme-f64f64
+    /* binutils < 2.39 spells this "+sme-f64" */
+    .arch   armv9-a+sme+sme-f64f64
 
 #include "sme_ukr_macros.h"
 
-	SME_DT_SETUP d
+    SME_DT_SETUP d
 
-	.text
-	.global	bli_dgemm_armsme_2Vx4Vx4
-	.type	bli_dgemm_armsme_2Vx4Vx4, %function
+    .text
+    .global bli_dgemm_armsme_2Vx4Vx4
+    .type   bli_dgemm_armsme_2Vx4Vx4, %function
 
 bli_dgemm_armsme_2Vx4Vx4:
 
-	// ===== FUNC INTRO =======================================================
-	UKR_SME_INIT d			// spill, rs_c/cs_c, PSTATE, p0, x14=SVL_D
+    // ===== FUNC INTRO =======================================================
+    UKR_SME_INIT d          // spill, rs_c/cs_c, PSTATE, p0, x14=SVL_D
 
-	// ===== SIZE / VARIANT DISPATCH ==========================================
-	lsl	x11, x14, #1		// MR = 2*SVL_D
-	cmp	x0, x11
-	b.lt	.Ltail
-	lsl	x11, x14, #UKR_NR_LOG2	// NR = 4*SVL_D
-	cmp	x1, x11
-	b.lt	.Ltail			// m<MR or n<NR -> predicated tail kernel
+    // ===== SIZE / VARIANT DISPATCH ==========================================
+    lsl x11, x14, #1        // MR = 2*SVL_D
+    cmp x0, x11
+    b.lt    .Ltail
+    lsl x11, x14, #UKR_NR_LOG2  // NR = 4*SVL_D
+    cmp x1, x11
+    b.lt    .Ltail          // m<MR or n<NR -> predicated tail kernel
 #if !SME_FA64
-	cmp	x10, #.LSME_ES		// cs_c == 1 ?
-	b.eq	.Lmain
-	cmp	x9, #.LSME_ES		// rs_c == 1 ?
-	b.eq	.Lmain
-	b	.Ltail			// general stride w/o FA64: use tail path
+    cmp x10, #.LSME_ES      // cs_c == 1 ?
+    b.eq    .Lmain
+    cmp x9, #.LSME_ES       // rs_c == 1 ?
+    b.eq    .Lmain
+    b   .Ltail          // general stride w/o FA64: use tail path
 #endif
 
-	// ===== MAIN LOOP ========================================================
+    // ===== MAIN LOOP ========================================================
 .Lmain:
-	// The epilogue's branch conditions are computed here because x3/x6 are
-	// reused as ZA pointers later; none of x0/x16/x17/z24/z25 is touched by
-	// SME_KLOOP.
-	SME_LD1R 24, x3, d		// alpha  (only the Z-register paths use it)
-	SME_LD1R 25, x6, d		// beta
-	SME_BETA_ZERO_TEST 16, x6, d	// x16 == 0 <=> beta  == +-0.0
-	SME_FP_ONE_TEST    17, x6, d	// x17 == 0 <=> beta  == 1.0
-	SME_FP_ONE_TEST     0, x3, d	// x0  == 0 <=> alpha == 1.0   (m is dead)
+    // The epilogue's branch conditions are computed here because x3/x6 are
+    // reused as ZA pointers later; none of x0/x16/x17/z24/z25 is touched by
+    // SME_KLOOP.
+    SME_LD1R 24, x3, d      // alpha  (only the Z-register paths use it)
+    SME_LD1R 25, x6, d      // beta
+    SME_BETA_ZERO_TEST 16, x6, d    // x16 == 0 <=> beta  == +-0.0
+    SME_FP_ONE_TEST    17, x6, d    // x17 == 0 <=> beta  == 1.0
+    SME_FP_ONE_TEST     0, x3, d    // x0  == 0 <=> alpha == 1.0   (m is dead)
 
-	SME_KLOOP d, UKR_NBLK, UKR_NK
+    SME_KLOOP d, UKR_NBLK, UKR_NK
 
-	// ===== SCALE + STOREBLOCK ===============================================
-	// ZA-direct store, for alpha==1 && beta==0 && unit stride only: ZA holds
-	// the finished result, so it goes to memory with no Z register in the path.
-	//
-	// There is deliberately no beta==1 counterpart.  That would require
-	// preloading C into ZA before the k-loop, and the k-loop evicts C from L1
-	// long before the store, so the cache lines get paid for twice.
+    // ===== SCALE + STOREBLOCK ===============================================
+    // ZA-direct store, for alpha==1 && beta==0 && unit stride only: ZA holds
+    // the finished result, so it goes to memory with no Z register in the path.
+    //
+    // There is deliberately no beta==1 counterpart.  That would require
+    // preloading C into ZA before the k-loop, and the k-loop evicts C from L1
+    // long before the store, so the cache lines get paid for twice.
     // SME_ZA_ROWS/COLS still take a dir argument and dir=1 (C -> ZA) is verified
     // working if this is ever worth retrying on
-	// hardware with a larger L1 or a cheaper ZA port.
-	cbnz	x0,  .Lstore_gen		// alpha != 1
-	cbnz	x16, .Lstore_gen		// beta  != 0
-	SME_IF_STRIDED .Lstore_gen		// general stride
-	cmp	x10, #.LSME_ES
-	b.ne	3f
-	SME_ZA_ROWS 0, d, UKR_NBLK		// ZA -> C, horizontal slices
-	b	.Lfinalize
-3:	SME_ZA_COLS 0, d, UKR_NBLK		// ZA -> C, vertical slices
-	b	.Lfinalize
+    // hardware with a larger L1 or a cheaper ZA port.
+    cbnz    x0,  .Lstore_gen        // alpha != 1
+    cbnz    x16, .Lstore_gen        // beta  != 0
+    SME_IF_STRIDED .Lstore_gen      // general stride
+    cmp x10, #.LSME_ES
+    b.ne    3f
+    SME_ZA_ROWS 0, d, UKR_NBLK      // ZA -> C, horizontal slices
+    b   .Lfinalize
+3:  SME_ZA_COLS 0, d, UKR_NBLK      // ZA -> C, vertical slices
+    b   .Lfinalize
 
 .Lstore_gen:
-	cmp	x10, #.LSME_ES		// ---- cs_c == 1: row-major C ----------
-	b.eq	.Lstore_rm
+    cmp x10, #.LSME_ES      // ---- cs_c == 1: row-major C ----------
+    b.eq    .Lstore_rm
 #if SME_FA64
-	cmp	x9, #.LSME_ES		// ---- rs_c == 1: col-major C ----------
-	b.eq	.Lstore_cm
-	b	.Lstore_gs		// ---- general stride ------------------
+    cmp x9, #.LSME_ES       // ---- rs_c == 1: col-major C ----------
+    b.eq    .Lstore_cm
+    b   .Lstore_gs      // ---- general stride ------------------
 #else
-	b	.Lstore_cm
+    b   .Lstore_cm
 #endif
 
 .Lstore_rm:
-	cbz	x16, .Lstore_rm_b0
-	cbz	x17, .Lstore_rm_b1
-	SME_STORE_ROWS 0, 0, d, UKR_NBLK
-	b	.Lfinalize
+    cbz x16, .Lstore_rm_b0
+    cbz x17, .Lstore_rm_b1
+    SME_STORE_ROWS 0, 0, d, UKR_NBLK
+    b   .Lfinalize
 .Lstore_rm_b0:
-	SME_STORE_ROWS 0, 1, d, UKR_NBLK
-	b	.Lfinalize
+    SME_STORE_ROWS 0, 1, d, UKR_NBLK
+    b   .Lfinalize
 .Lstore_rm_b1:
-	SME_STORE_ROWS 0, 2, d, UKR_NBLK
-	b	.Lfinalize
+    SME_STORE_ROWS 0, 2, d, UKR_NBLK
+    b   .Lfinalize
 
 .Lstore_cm:
-	cbz	x16, .Lstore_cm_b0
-	cbz	x17, .Lstore_cm_b1
-	SME_STORE_COLS 0, d, UKR_NBLK
-	b	.Lfinalize
+    cbz x16, .Lstore_cm_b0
+    cbz x17, .Lstore_cm_b1
+    SME_STORE_COLS 0, d, UKR_NBLK
+    b   .Lfinalize
 .Lstore_cm_b0:
-	SME_STORE_COLS 1, d, UKR_NBLK
-	b	.Lfinalize
+    SME_STORE_COLS 1, d, UKR_NBLK
+    b   .Lfinalize
 .Lstore_cm_b1:
-	SME_STORE_COLS 2, d, UKR_NBLK
-	b	.Lfinalize
+    SME_STORE_COLS 2, d, UKR_NBLK
+    b   .Lfinalize
 
 #if SME_FA64
 .Lstore_gs:
-	SME_GS_OFFSETS UKR_NBLK, d
-	cbz	x16, .Lstore_gs_b0
-	SME_STORE_ROWS 1, 0, d, UKR_NBLK
-	b	.Lfinalize
+    SME_GS_OFFSETS UKR_NBLK, d
+    cbz x16, .Lstore_gs_b0
+    SME_STORE_ROWS 1, 0, d, UKR_NBLK
+    b   .Lfinalize
 .Lstore_gs_b0:
-	SME_STORE_ROWS 1, 1, d, UKR_NBLK
-	b	.Lfinalize
+    SME_STORE_ROWS 1, 1, d, UKR_NBLK
+    b   .Lfinalize
 #endif
 
-	// ===== TAIL =============================================================
-.Ltail:					// SME_TAIL zeroes tile 0 per subtile, so
-					// it needs no accumulator clear from here
-	SME_TAIL d, UKR_NBLK
+    // ===== TAIL =============================================================
+.Ltail:                 // SME_TAIL zeroes tile 0 per subtile, so
+                    // it needs no accumulator clear from here
+    SME_TAIL d, UKR_NBLK
 
-	// ===== FINALIZE / FUNC OUTRO ============================================
+    // ===== FINALIZE / FUNC OUTRO ============================================
 .Lfinalize:
-	UKR_SME_DEINIT			// PSTATE, restore d8-d15, pop
-	ret
+    UKR_SME_DEINIT          // PSTATE, restore d8-d15, pop
+    ret
 
-	.size	bli_dgemm_armsme_2Vx4Vx4, .-bli_dgemm_armsme_2Vx4Vx4
-	.section	.note.GNU-stack,"",%progbits
+    .size   bli_dgemm_armsme_2Vx4Vx4, .-bli_dgemm_armsme_2Vx4Vx4
+    .section    .note.GNU-stack,"",%progbits
