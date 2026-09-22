@@ -257,8 +257,7 @@
   Slice-immediate range and the w12-w15 selector constraint are identical to
   MOVA, so the traversal below is the same shape as SME_STORE_ROWS/COLS.
 ---------------------------------------------------------------------------*/
-/* Branch to \lbl unless C is unit-stride in one dimension.  The ZA-direct
-   preload and the ZA-direct store MUST use the same test.               */
+/* Branch to \lbl unless C is unit-stride in one dimension.               */
 .macro SME_IF_STRIDED lbl
 	cmp	x10, #.LSME_ES
 	ccmp	x9,  #.LSME_ES, #4, ne
@@ -316,7 +315,8 @@
 	SME_ZA_LDST_H \dir, %(\tb+3), x8,  %(3+\vl0+1), \sl, \dt
 .endm
 
-/* dir 1 = C -> ZA (preload, beta==1), dir 0 = ZA -> C.  cs_c == 1.       */
+/* dir 0 = ZA -> C (the only direction used), dir 1 = C -> ZA.  cs_c == 1.
+   dir 1 is assembled-correct but not wired up; see the note in the .S.    */
 .macro SME_ZA_ROWS dir, dt, nblk
 	SME_ZA_XOFF \nblk
 	mov	x15, x7

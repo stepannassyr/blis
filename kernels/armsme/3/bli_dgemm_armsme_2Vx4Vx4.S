@@ -63,41 +63,35 @@ bli_dgemm_armsme_2Vx4Vx4:
 
 	// ===== MAIN LOOP ========================================================
 .Lmain:
-	// Everything the epilogue branches on is decided BEFORE the k-loop, so
-	// that the ZA preload and the store agree.  None of x0/x16/x17/z24/z25
-	// is touched by SME_KLOOP.
+	// The epilogue's branch conditions are computed here because x3/x6 are
+	// reused as ZA pointers later; none of x0/x16/x17/z24/z25 is touched by
+	// SME_KLOOP.
 	SME_LD1R 24, x3, d		// alpha  (only the Z-register paths use it)
 	SME_LD1R 25, x6, d		// beta
 	SME_BETA_ZERO_TEST 16, x6, d	// x16 == 0 <=> beta  == +-0.0
 	SME_FP_ONE_TEST    17, x6, d	// x17 == 0 <=> beta  == 1.0
 	SME_FP_ONE_TEST     0, x3, d	// x0  == 0 <=> alpha == 1.0   (m is dead)
 
-	// ---- preload C into ZA iff alpha==1 && beta==1 && unit stride ---------
-	cbnz	x0,  .Lkloop
-	cbnz	x17, .Lkloop
-	SME_IF_STRIDED .Lkloop
-	stp	x4, x5, [sp, #-16]!		// a/b: x3..x6 are the ZA pointers
-	cmp	x10, #.LSME_ES
-	b.ne	1f
-	SME_ZA_ROWS 1, d, UKR_NBLK		// C -> ZA, horizontal slices
-	b	2f
-1:	SME_ZA_COLS 1, d, UKR_NBLK		// C -> ZA, vertical slices
-2:	ldp	x4, x5, [sp], #16
-
-.Lkloop:
 	SME_KLOOP d, UKR_NBLK, UKR_NK
 
 	// ===== SCALE + STOREBLOCK ===============================================
-	cbnz	x0, .Lstore_gen			// alpha != 1 -> Z-register epilogue
-	SME_IF_STRIDED .Lstore_gen
-	cbz	x16, .Lstore_za			// beta == 0: ZA already holds acc
-	cbnz	x17, .Lstore_gen		// beta != 1: needs a real scale
-.Lstore_za:					// beta == 1: C was preloaded
+	// ZA-direct store, for alpha==1 && beta==0 && unit stride only: ZA holds
+	// the finished result, so it goes to memory with no Z register in the path.
+	//
+	// There is deliberately no beta==1 counterpart.  That would require
+	// preloading C into ZA before the k-loop, and the k-loop evicts C from L1
+	// long before the store, so the cache lines get paid for twice.
+    // SME_ZA_ROWS/COLS still take a dir argument and dir=1 (C -> ZA) is verified
+    // working if this is ever worth retrying on
+	// hardware with a larger L1 or a cheaper ZA port.
+	cbnz	x0,  .Lstore_gen		// alpha != 1
+	cbnz	x16, .Lstore_gen		// beta  != 0
+	SME_IF_STRIDED .Lstore_gen		// general stride
 	cmp	x10, #.LSME_ES
 	b.ne	3f
-	SME_ZA_ROWS 0, d, UKR_NBLK		// ZA -> C, no Z registers at all
+	SME_ZA_ROWS 0, d, UKR_NBLK		// ZA -> C, horizontal slices
 	b	.Lfinalize
-3:	SME_ZA_COLS 0, d, UKR_NBLK
+3:	SME_ZA_COLS 0, d, UKR_NBLK		// ZA -> C, vertical slices
 	b	.Lfinalize
 
 .Lstore_gen:
