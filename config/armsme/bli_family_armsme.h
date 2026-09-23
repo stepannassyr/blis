@@ -53,6 +53,8 @@
   #endif
   #define BLIS_MALLOC_POOL lx2_malloc
   #define BLIS_FREE_POOL   lx2_free
+  #define BLIS_MALLOC_USER lx2_malloc
+  #define BLIS_FREE_USER   lx2_free
 #endif
 
 
