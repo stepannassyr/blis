@@ -22,6 +22,7 @@
 
 #define UKR_PF_FUTURE   ((UKR_VARIANT >> 0) & 1)
 #define UKR_PF_C        ((UKR_VARIANT >> 5) & 1)
+#define UKR_PF_CNEXT    ((UKR_VARIANT >> 6) & 1)
 
 #if   ((UKR_VARIANT >> 1) & 3) == 1
 #define UKR_PF_A        SME_PF_L1KEEP
@@ -84,6 +85,9 @@ L(main):
 #if UKR_PF_C
     adrp    x15, bli_armsme_pf_c_dist   // hot/cooldown split point
     ldr     w15, [x15, #:lo12:bli_armsme_pf_c_dist]
+#endif
+#if UKR_PF_CNEXT
+    SME_PF_CNEXT UKR_NBLK, UKR_NR_LOG2  // next ir tile -> L2
 #endif
     SME_KLOOP d, UKR_NBLK, UKR_NK, UKR_PF_A, UKR_PF_B, UKR_PF_C, UKR_NR_LOG2
 
@@ -174,3 +178,4 @@ L(finalize):
 #undef UKR_PF_A
 #undef UKR_PF_B
 #undef UKR_PF_C
+#undef UKR_PF_CNEXT

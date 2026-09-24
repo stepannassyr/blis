@@ -259,6 +259,222 @@
 #undef UKR_SUFFIX
 #undef UKR_VARIANT
 
+#define UKR_VARIANT 64
+#define UKR_SUFFIX  v64
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 65
+#define UKR_SUFFIX  v65
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 66
+#define UKR_SUFFIX  v66
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 67
+#define UKR_SUFFIX  v67
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 68
+#define UKR_SUFFIX  v68
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 69
+#define UKR_SUFFIX  v69
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 72
+#define UKR_SUFFIX  v72
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 73
+#define UKR_SUFFIX  v73
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 74
+#define UKR_SUFFIX  v74
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 75
+#define UKR_SUFFIX  v75
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 76
+#define UKR_SUFFIX  v76
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 77
+#define UKR_SUFFIX  v77
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 80
+#define UKR_SUFFIX  v80
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 81
+#define UKR_SUFFIX  v81
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 82
+#define UKR_SUFFIX  v82
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 83
+#define UKR_SUFFIX  v83
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 84
+#define UKR_SUFFIX  v84
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 85
+#define UKR_SUFFIX  v85
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 96
+#define UKR_SUFFIX  v96
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 97
+#define UKR_SUFFIX  v97
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 98
+#define UKR_SUFFIX  v98
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 99
+#define UKR_SUFFIX  v99
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 100
+#define UKR_SUFFIX  v100
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 101
+#define UKR_SUFFIX  v101
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 104
+#define UKR_SUFFIX  v104
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 105
+#define UKR_SUFFIX  v105
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 106
+#define UKR_SUFFIX  v106
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 107
+#define UKR_SUFFIX  v107
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 108
+#define UKR_SUFFIX  v108
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 109
+#define UKR_SUFFIX  v109
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 112
+#define UKR_SUFFIX  v112
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 113
+#define UKR_SUFFIX  v113
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 114
+#define UKR_SUFFIX  v114
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 115
+#define UKR_SUFFIX  v115
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 116
+#define UKR_SUFFIX  v116
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
+#define UKR_VARIANT 117
+#define UKR_SUFFIX  v117
+#include "bli_sgemm_armsme_2Vx2Vx4_body.h"
+#undef UKR_SUFFIX
+#undef UKR_VARIANT
+
 /* Variant 0 is the plain kernel; keep the historical symbol as an alias so
    the _pf wrappers in bli_gemm_armsme.c and any external reference still
    resolve. */

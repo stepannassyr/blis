@@ -484,8 +484,15 @@
 
 /* C is both read and written by the epilogue, and with a write-allocate L1
    the store needs the line writable anyway, so prefetch for store.        */
-.macro SME_PRFD_ST xb, off
+#define SME_PF_ST_L1KEEP  1
+#define SME_PF_ST_L2KEEP  2
+
+.macro SME_PRFD_ST op, xb, off
+  .if \op == SME_PF_ST_L1KEEP
     prfd    PSTL1KEEP, p0, [\xb, #\off, MUL VL]
+  .elseif \op == SME_PF_ST_L2KEEP
+    prfd    PSTL2KEEP, p0, [\xb, #\off, MUL VL]
+  .endif
 .endm
 
 /* A and B, one loop iteration ahead: A advances 2*nk vectors per iteration,
@@ -517,15 +524,18 @@
    lines arrive without sitting through the whole k-loop being evicted.
    Unit-stride layouts only -- general stride would need a gather prefetch,
    which is illegal in Streaming SVE mode.  Clobbers x8, x12.             */
-.macro SME_PF_C nblk, nr_log2
+/* Walk the MR x NR tile based at \xb and prefetch every line of it.
+   Unit-stride layouts only; general stride would need a gather prefetch,
+   which is illegal in Streaming SVE mode.  Clobbers x8, x12.            */
+.macro SME_PF_C_AT xb, op, nblk, nr_log2
     cmp     x10, #.LSME_ES              // cs_c == 1: rows contiguous
     b.ne    .Lpfc_cm\@
-    mov     x8, x7
+    mov     x8, \xb
     lsl     x12, x14, #1                // MR = 2*SVL rows
 .Lpfc_rm\@:
     .set    .L_pfi, 0
     .rept   2*\nblk
-    SME_PRFD_ST x8, %.L_pfi
+    SME_PRFD_ST \op, x8, %.L_pfi
     .set    .L_pfi, .L_pfi+1
     .endr
     add     x8, x8, x9
@@ -535,15 +545,31 @@
 .Lpfc_cm\@:
     cmp     x9, #.LSME_ES               // rs_c == 1: columns contiguous
     b.ne    .Lpfc_end\@
-    mov     x8, x7
+    mov     x8, \xb
     lsl     x12, x14, #\nr_log2         // NR columns
 .Lpfc_cl\@:
-    SME_PRFD_ST x8, 0
-    SME_PRFD_ST x8, 1
+    SME_PRFD_ST \op, x8, 0
+    SME_PRFD_ST \op, x8, 1
     add     x8, x8, x10
     subs    x12, x12, #1
     b.ne    .Lpfc_cl\@
 .Lpfc_end\@:
+.endm
+
+/* The current tile, to L1, issued between the hot and cooldown k-loops. */
+.macro SME_PF_C nblk, nr_log2
+    SME_PF_C_AT x7, SME_PF_ST_L1KEEP, \nblk, \nr_log2
+.endm
+
+/* The tile the NEXT ir iteration will use, at c + MR*rs_c, to L2, issued
+   before the k-loop so it has a whole micro-kernel call of lead time.
+   Past the last ir step this addresses beyond the m_c block; prefetches
+   never fault, so it costs at most some useless lines.  Clobbers x3, x8,
+   x12 -- all dead here and none of them live across SME_KLOOP.          */
+.macro SME_PF_CNEXT nblk, nr_log2
+    lsl     x3, x14, #1                 // MR rows
+    madd    x3, x3, x9, x7              // &C[MR][0]
+    SME_PF_C_AT x3, SME_PF_ST_L2KEEP, \nblk, \nr_log2
 .endm
 
 /* One L2 prefetch per 4 KiB of the NEXT B micro-panel, plus the head of the
