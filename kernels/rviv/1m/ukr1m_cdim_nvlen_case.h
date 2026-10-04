@@ -9,7 +9,7 @@
         #define VSTRIDE_FROM_1STRIDE_Y VSTRIDE_FROM_1STRIDE_C
 
 
-        if ( bli_xeq1( *(( float* )kappa) ) )
+        if ( bli_xeq1( *(( const KAPPA_CTYPE* )kappa) ) )
         {
             #define PREPARE_SCALAR
             #define VTRANSFORM(vdst, vsrc) 
@@ -23,7 +23,9 @@
                 #define PREPARE_STRIDEY PREPARE_STRIDE_C
                 #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
 
+                #include "ukr1m_pf_on.h"
                 #include UKRINCLUDE
+                #include "ukr1m_pf_off.h"
 
                 #undef LABELPREFIX
                 #undef VLOADX
@@ -70,7 +72,9 @@
                 #define PREPARE_STRIDEY PREPARE_STRIDE_C
                 #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
 
+                #include "ukr1m_pf_on.h"
                 #include UKRINCLUDE
+                #include "ukr1m_pf_off.h"
 
                 #undef LABELPREFIX
                 #undef VLOADX

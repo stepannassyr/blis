@@ -10,6 +10,8 @@
 #if defined(LDA1)
 
 #define VLOADX VLOAD
+// each source column is contiguous along k: prefetch it ahead (ukr1_macros.h)
+#define PFV(addrreg) PREFETCH_R(addrreg, RVIV_PACKM_PF_BYTES)
 #define PREPARE_STRIDEX PREPARE_STRIDE_C
 #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
 #define CALC_VOFFSET "slli %[yfinoff], %[vlen], " SIZESHIFT "\n\t"
@@ -37,6 +39,7 @@
 #endif
 
 #undef VLOADX
+#undef PFV
 #undef PREPARE_STRIDEX
 #undef VSTRIDE_FROM_1STRIDE_X
 #undef CALC_VOFFSET
@@ -44,6 +47,8 @@
 #elif defined(LDAG)
 
 #define VLOADX(vreg, addrreg) VLOAD_STRIDED(vreg, addrreg, "%[xstride1]")
+// strided along k: a line ahead would cover one element's line, so none
+#define PFV(addrreg)
 #define PREPARE_STRIDEX PREPARE_STRIDE_G
 #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_G
 #define CALC_VOFFSET "mul %[yfinoff], %[vlen], %[xstride1]\n\t"
@@ -71,6 +76,7 @@
 #endif
 
 #undef VLOADX
+#undef PFV
 #undef PREPARE_STRIDEX
 #undef VSTRIDE_FROM_1STRIDE_X
 #undef CALC_VOFFSET

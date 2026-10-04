@@ -3,7 +3,7 @@
 if (lda == 1)
 {
 #define LDA1
-    if(bli_xeq1(*(( double* ) kappa)))
+    if(bli_xeq1(*(( const KAPPA_CTYPE* ) kappa)))
     {
         #define KAPPA1
         #include "ukr1m_nv_selector.h"
@@ -20,7 +20,7 @@ if (lda == 1)
 else
 {
 #define LDAG
-    if(bli_xeq1(*(( double* ) kappa)))
+    if(bli_xeq1(*(( const KAPPA_CTYPE* ) kappa)))
     {
         #define KAPPA1
         #include "ukr1m_nv_selector.h"

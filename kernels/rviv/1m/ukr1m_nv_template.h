@@ -55,9 +55,11 @@ __asm__ (
 
     "." LABELPREFIX "fullvloop%=:\n\t"
 
+#if RVIV_PACKM_PF_DEST
         "mul %[yptrprefetch], %[vlen], %[ystride1]\n\t"
         "add %[yptrprefetch], %[yptr], %[yptrprefetch]\n\t"
         "prefetch.w 0(%[yptrprefetch])\n\t"
+#endif
 
         BODYBLOCK(CDIM, PRELOAD_DIST)
         STOREBLOCK(CDIM)

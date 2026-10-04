@@ -60,16 +60,22 @@
     ADVANCE_PTR(base, id3, stride)
 
 #define VLOAD_P_1(I1, NPTRS) \
-    VLOADX("v" STR(I1), "%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]") 
+    VLOADX("v" STR(I1), "%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]") \
+    PFV("%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]")
 
 #define VLOAD_P_2(I1, I2, NPTRS) \
     VLOADX("v" STR(I1), "%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]") \
-    VLOADX("v" STR(I2), "%[xptr" STR(VIDX_PTR(NPTRS,I2)) "]") 
+    PFV("%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]") \
+    VLOADX("v" STR(I2), "%[xptr" STR(VIDX_PTR(NPTRS,I2)) "]") \
+    PFV("%[xptr" STR(VIDX_PTR(NPTRS,I2)) "]")
 
 #define VLOAD_P_3(I1, I2, I3, NPTRS) \
     VLOADX("v" STR(I1), "%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]") \
+    PFV("%[xptr" STR(VIDX_PTR(NPTRS,I1)) "]") \
     VLOADX("v" STR(I2), "%[xptr" STR(VIDX_PTR(NPTRS,I2)) "]") \
-    VLOADX("v" STR(I3), "%[xptr" STR(VIDX_PTR(NPTRS,I3)) "]")
+    PFV("%[xptr" STR(VIDX_PTR(NPTRS,I2)) "]") \
+    VLOADX("v" STR(I3), "%[xptr" STR(VIDX_PTR(NPTRS,I3)) "]") \
+    PFV("%[xptr" STR(VIDX_PTR(NPTRS,I3)) "]")
 
 #define VSTORE_P_1(I1) \
     VSTOREY("v" STR(I1), "%[yptr" STR(VIDX_PTR(1,I1)) "]")
@@ -1200,8 +1206,12 @@
     VCOMP_P_3(6, 7, 8)\
     VCOMP_P_3(9, 10, 11)
 
+// standalone, not BODYBLOCK_N_8 plus more: that one already ends with the
+// compute of all its registers -- loads columns 8-12, applies kappa to v0-v12 once each
 #define BODYBLOCK_13_8\
-    BODYBLOCK_11_8 \
+    VLOAD_COMP_P_1(8, 0, 1)\
+    VLOAD_COMP_P_1(9, 1, 1)\
+    VLOAD_COMP_P_1(10, 2, 1)\
     VLOAD_COMP_P_1(11, 3, 1)\
     VLOAD_COMP_P_1(12, 4, 1)\
     VCOMP_P_1(5)\
@@ -1222,8 +1232,10 @@
     VCOMP_P_2(10, 11)\
     VCOMP_P_2(12, 13)
 
+// standalone, not BODYBLOCK_N_8 plus more: that one already ends with the
+// compute of all its registers -- loads columns 8-14 (each pointer advanced equally), kappa once each
 #define BODYBLOCK_15_8\
-    BODYBLOCK_12_8 \
+    VLOAD_COMP_P_3(8, 9, 10, 0, 1, 2, 3)\
     VLOAD_COMP_P_3(11, 12, 13, 3, 4, 5, 3)\
     VLOAD_P_1(14, 3)\
     ADVANCE_PTR(xptr, VIDX_PTR(3, 14), xvstride)\
@@ -1231,8 +1243,12 @@
     VCOMP_P_3(9, 10, 11)\
     VCOMP_P_3(12, 13, 14)
 
+// standalone, not BODYBLOCK_N_8 plus more: that one already ends with the
+// compute of all its registers -- loads columns 8-15, kappa once each
 #define BODYBLOCK_16_8\
-    BODYBLOCK_14_8 \
+    VLOAD_COMP_P_2(8, 9, 0, 1, 2)\
+    VLOAD_COMP_P_2(10, 11, 2, 3, 2)\
+    VLOAD_COMP_P_2(12, 13, 4, 5, 2)\
     VLOAD_COMP_P_2(14, 15, 6, 7, 2)\
     VCOMP_P_2(8, 9)\
     VCOMP_P_2(10, 11)\

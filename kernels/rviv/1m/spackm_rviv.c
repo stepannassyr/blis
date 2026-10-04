@@ -74,6 +74,7 @@ void bli_spackm_rviv
     #define MAKEUNROLL MAKEUNROLL_I
 
     #define bli_xeq1 bli_seq1
+    #define KAPPA_CTYPE float
     #define DT_SUFFIX S
     #define SIZESHIFT "2"
     #define SIZEBITS  "32"
