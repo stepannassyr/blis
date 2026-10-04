@@ -41,7 +41,7 @@ __asm__ (
     "add %[xptr], %[xptr], %[xvstride]\n\t"
     "add %[yptr], %[yptr], %[yvstride]\n\t"
     VLOADX("v" STR(LMID(2)) , "%[xptr]")
-    PFX("%[xptr]")
+    PFX_V1("%[xptr]")
     VLOADY(VXTOY("v" STR(LMID(2)),"v" STR(LMID(3))),"%[yptr]")
     "add %[xptr], %[xptr], %[xlstride]\n\t"
     "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -52,7 +52,7 @@ __asm__ (
     "add %[xptr], %[xptr], %[xvstride]\n\t"
     "add %[yptr], %[yptr], %[yvstride]\n\t"
     VLOADX("v" STR(LMID(6)) , "%[xptr]")
-    PFX("%[xptr]")
+    PFX_V1("%[xptr]")
     VLOADY(VXTOY("v" STR(LMID(6)),"v" STR(LMID(7))),"%[yptr]")
     "add %[xptr], %[xptr], %[xlstride]\n\t"
     "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -63,7 +63,7 @@ __asm__ (
     "add %[xptr], %[xptr], %[xvstride]\n\t"
     "add %[yptr], %[yptr], %[yvstride]\n\t"
     VLOADX("v" STR(LMID(10)) , "%[xptr]")
-    PFX("%[xptr]")
+    PFX_V1("%[xptr]")
     VLOADY(VXTOY("v" STR(LMID(10)),"v" STR(LMID(11))),"%[yptr]")
     "add %[xptr], %[xptr], %[xlstride]\n\t"
     "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -74,7 +74,7 @@ __asm__ (
     "add %[xptr], %[xptr], %[xvstride]\n\t"
     "add %[yptr], %[yptr], %[yvstride]\n\t"
     VLOADX("v" STR(LMID(14)) , "%[xptr]")
-    PFX("%[xptr]")
+    PFX_V1("%[xptr]")
     VLOADY(VXTOY("v" STR(LMID(14)),"v" STR(LMID(15))),"%[yptr]")
     "add %[xptr], %[xptr], %[xlstride]\n\t"
     "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -118,7 +118,7 @@ __asm__ (
         "add %[xptr], %[xptr], %[xvstride]\n\t"
         "add %[yptr], %[yptr], %[yvstride]\n\t"
         VLOADX("v" STR(LMID(2)) , "%[xptr]")
-        PFX("%[xptr]")
+        PFX_V1("%[xptr]")
         VLOADY(VXTOY("v" STR(LMID(2)),"v" STR(LMID(3))),"%[yptr]")
         "add %[xptr], %[xptr], %[xlstride]\n\t"
         "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -129,7 +129,7 @@ __asm__ (
         "add %[xptr], %[xptr], %[xvstride]\n\t"
         "add %[yptr], %[yptr], %[yvstride]\n\t"
         VLOADX("v" STR(LMID(6)) , "%[xptr]")
-        PFX("%[xptr]")
+        PFX_V1("%[xptr]")
         VLOADY(VXTOY("v" STR(LMID(6)),"v" STR(LMID(7))),"%[yptr]")
         "add %[xptr], %[xptr], %[xlstride]\n\t"
         "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -140,7 +140,7 @@ __asm__ (
         "add %[xptr], %[xptr], %[xvstride]\n\t"
         "add %[yptr], %[yptr], %[yvstride]\n\t"
         VLOADX("v" STR(LMID(10)) , "%[xptr]")
-        PFX("%[xptr]")
+        PFX_V1("%[xptr]")
         VLOADY(VXTOY("v" STR(LMID(10)),"v" STR(LMID(11))),"%[yptr]")
         "add %[xptr], %[xptr], %[xlstride]\n\t"
         "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -151,7 +151,7 @@ __asm__ (
         "add %[xptr], %[xptr], %[xvstride]\n\t"
         "add %[yptr], %[yptr], %[yvstride]\n\t"
         VLOADX("v" STR(LMID(14)) , "%[xptr]")
-        PFX("%[xptr]")
+        PFX_V1("%[xptr]")
         VLOADY(VXTOY("v" STR(LMID(14)),"v" STR(LMID(15))),"%[yptr]")
         "add %[xptr], %[xptr], %[xlstride]\n\t"
         "add %[yptr], %[yptr], %[xlstride]\n\t"
@@ -203,7 +203,7 @@ __asm__ (
         "add %[yptr_store], %[yptr_store], %[yvstride]\n\t"
 
         VLOADX("v" STR(LMID(2)),"%[xptr]")
-        PFX("%[xptr]")
+        PFX_V1("%[xptr]")
         VLOADY(VXTOY("v" STR(LMID(2)),"v" STR(LMID(3))),"%[yptr]")
         "add %[xptr], %[xptr], %[xlstride]\n\t"
         VTRANSFORM(VXTOY("v" STR(LMID(2)), "v" STR(LMID(3))), "v" STR(LMID(2)))

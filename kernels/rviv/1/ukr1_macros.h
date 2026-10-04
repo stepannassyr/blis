@@ -123,23 +123,26 @@
 #define RVIV_PACKM_PF_DEST 0
 #endif
 
-// The lines of one LMUL register group at VLEN 256 (32 bytes a register): the
-// first and the last byte's line, and those between.
-#define PF_GROUP_LINES_1(r) PREFETCH_R(r, 0)
-#define PF_GROUP_LINES_2(r) PREFETCH_R(r, 0) PREFETCH_R(r, 32)
-#define PF_GROUP_LINES_4(r) PREFETCH_R(r, 0) PREFETCH_R(r, 64) PREFETCH_R(r, 96)
-#define PF_GROUP_LINES_8(r) PREFETCH_R(r, 0) PREFETCH_R(r, 64) PREFETCH_R(r, 128)\
-                            PREFETCH_R(r, 192) PREFETCH_R(r, 224)
-#define PF_GROUP_LINES_I(lmul, r) PF_GROUP_LINES_##lmul(r)
-#define PF_GROUP_LINES(lmul, r) PF_GROUP_LINES_I(lmul, r)
+// One prefetch per 64-byte line, never two for the same line: on the X60 a
+// second prefetch of a line already in flight costs the whole benefit
+// (prefetch_test --copy --pf-pair: ~350 cycles a line instead of ~100). Which
+// loads start a new line depends on the vector register size, VLEN/8 bytes:
+#ifndef RVIV_PACKM_PF_VLENB
+#define RVIV_PACKM_PF_VLENB 32
+#endif
 
 // Hooks in the copy loops, empty unless an includer turns them on
 // (ukr1m_pf_on.h / ukr1m_pf_off.h): level-1 kernels share the loops.
 //   PF_DECLARE             the registers it needs
 //   PF_PREPARE(colstride)  where the column stride (bytes) is in a register
-//   PFX(addr)              after each load of a source vector at addr
+//   PFX(addr)              after the load of a column's first source vector
+//   PFX_Vk(addr)           after its k-th: a prefetch only where that starts a
+//                          new line
 //   PF_OPERANDS            first in the asm's output operands
 #define PF_DECLARE
 #define PF_PREPARE(colstridereg)
 #define PFX(addrreg)
+#define PFX_V1(addrreg)
+#define PFX_V2(addrreg)
+#define PFX_V3(addrreg)
 #define PF_OPERANDS

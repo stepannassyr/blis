@@ -10,7 +10,10 @@ uint64_t counter;
 uint64_t unroll;
 uint64_t xfinoff;
 uint64_t yfinoff;
-uint64_t yptrprefetch;
+// pft: scratch -- setup arithmetic, the source prefetch's address (PFV); once
+// the block count is known, unroll holds that prefetch's offset. GCC allows 30
+// asm operands, and this asm has them all.
+uint64_t pft;
 __asm__ (
     PREPARE_SCALAR
     "vsetvli %[vlen], %[vlen], e" SIZEBITS ", m1, ta, ma\n\t"
@@ -20,6 +23,7 @@ __asm__ (
     "divu %[counter], %[n], %[unroll]\n\t"
     /* put remainder back into n */
     "remu %[n], %[n], %[unroll]\n\t"
+    PFV_INIT
 
     PREPARE_STRIDEX("%[xvstride]", "%[xstride1]", SIZESHIFT)
     PREPARE_STRIDEY("%[yvstride]", "%[ystride1]", SIZESHIFT)
@@ -38,9 +42,9 @@ __asm__ (
 
     
     "mul %[yfinoff], %[vlen], %[ystride1]\n\t"
-    "li %[yptrprefetch], " STR(CDIM) "\n\t"
-    "mul %[yptrprefetch], %[yptrprefetch], %[yvstride]\n\t"
-    "sub %[yfinoff], %[yfinoff], %[yptrprefetch]\n\t"
+    "li %[pft], " STR(CDIM) "\n\t"
+    "mul %[pft], %[pft], %[yvstride]\n\t"
+    "sub %[yfinoff], %[yfinoff], %[pft]\n\t"
 
 
     LDIMFIXUP(ADJUST_STRIDE("%[yvstride]"))
@@ -56,9 +60,9 @@ __asm__ (
     "." LABELPREFIX "fullvloop%=:\n\t"
 
 #if RVIV_PACKM_PF_DEST
-        "mul %[yptrprefetch], %[vlen], %[ystride1]\n\t"
-        "add %[yptrprefetch], %[yptr], %[yptrprefetch]\n\t"
-        "prefetch.w 0(%[yptrprefetch])\n\t"
+        "mul %[pft], %[vlen], %[ystride1]\n\t"
+        "add %[pft], %[yptr], %[pft]\n\t"
+        "prefetch.w 0(%[pft])\n\t"
 #endif
 
         BODYBLOCK(CDIM, PRELOAD_DIST)
@@ -66,7 +70,7 @@ __asm__ (
 
         REWIND_PTRS
 
-
+        PFV_TOGGLE      // the next block: every other one prefetches
         PRELOADBLOCK(PRELOAD_DIST, NPTRS)
 
         "add %[counter], %[counter], -1\n\t"
@@ -99,9 +103,9 @@ __asm__ (
 
         
         "mul %[yfinoff], %[vlen], %[ystride1]\n\t"
-        "li %[yptrprefetch], " STR(CDIM) "\n\t"
-        "mul %[yptrprefetch], %[yptrprefetch], %[yvstride]\n\t"
-        "sub %[yfinoff], %[yfinoff], %[yptrprefetch]\n\t"
+        "li %[pft], " STR(CDIM) "\n\t"
+        "mul %[pft], %[pft], %[yvstride]\n\t"
+        "sub %[yfinoff], %[yfinoff], %[pft]\n\t"
 
         LDIMFIXUP(ADJUST_STRIDE("%[yvstride]"))
         LDIMFIXUP(ADJUST_STRIDE("%[xvstride]"))
@@ -122,7 +126,7 @@ __asm__ (
       [ystride1] "+r" (ystride1), [xstride1] "+r" (xstride1),
       [ldimx] "+r" (ldimx), [ldimy] "+r" (ldimy),
       [xfinoff] "=r" (xfinoff), [yfinoff] "=r" (yfinoff),
-      [yptrprefetch] "=r" (yptrprefetch)
+      [pft] "=&r" (pft)
     : [scalarptr] "r" (scalarptr)
     : "f0",
       "v0", "v1", "v2", "v3",

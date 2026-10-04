@@ -111,8 +111,8 @@
       [yptr3] "=r" (yptr3),
 
 #define ADJUST_STRIDE(stridereg)\
-    "li %[yptrprefetch], 3\n\t"\
-    "mul " stridereg ", " stridereg ", %[yptrprefetch]\n\t"
+    "li %[pft], 3\n\t"\
+    "mul " stridereg ", " stridereg ", %[pft]\n\t"
 
 #else
 #error incorrect N_MULTIPLE_X
