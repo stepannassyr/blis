@@ -114,7 +114,7 @@
 // source is contiguous along k; prefetch this many bytes ahead along it.
 // A multiple of 32 up to 2016; 512 is 8 lines.
 #ifndef RVIV_PACKM_PF_BYTES
-#define RVIV_PACKM_PF_BYTES 512
+#define RVIV_PACKM_PF_BYTES 1024
 #endif
 // The transposing loop's old prefetch.w of the packed destination, one line in
 // seven: off by default -- the destination streams, and a prefetch.w forces
