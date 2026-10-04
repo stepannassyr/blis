@@ -11,7 +11,11 @@
 
 #define VLOADX VLOAD
 // each source column is contiguous along k: prefetch it ahead (ukr1_macros.h)
+#if RVIV_PACKM_PF
 #define PFV(addrreg) PREFETCH_R(addrreg, RVIV_PACKM_PF_BYTES)
+#else
+#define PFV(addrreg)
+#endif
 #define PREPARE_STRIDEX PREPARE_STRIDE_C
 #define VSTRIDE_FROM_1STRIDE_X VSTRIDE_FROM_1STRIDE_C
 #define CALC_VOFFSET "slli %[yfinoff], %[vlen], " SIZESHIFT "\n\t"

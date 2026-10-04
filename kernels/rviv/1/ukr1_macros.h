@@ -99,6 +99,10 @@
 // of 32): no -march support needed, and a no-op hint on cores without Zicbop.
 #define PREFETCH_R(addrreg, off) "ori x0, " addrreg ", " STR(off) "+1\n\t"
 
+// All of packm's source prefetching, on or off (the fixes stay either way).
+#ifndef RVIV_PACKM_PF
+#define RVIV_PACKM_PF 1
+#endif
 // Copy loops (ukr1_4u*vmx.h, cdim a multiple of vlen): each panel column is
 // one contiguous source vector, a column stride apart; prefetch the column
 // 2^RVIV_PACKM_PF_COLS_SHIFT ahead -- 8 by default, where prefetch_test on
